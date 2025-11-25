@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+  }
+ 
+  body {
+    @apply bg-white text-slate-900 font-sans antialiased;
+  }
+}
+
+/* Custom scrollbar if needed, or other global styles */
+html, body, #root {
+  height: 100%;
+}
