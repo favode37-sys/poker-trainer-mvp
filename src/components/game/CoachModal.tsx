@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -6,29 +6,18 @@ import { useTypewriter } from '@/hooks/useTypewriter';
 
 interface CoachModalProps {
     isOpen: boolean;
+    isLoading: boolean; // Controlled externally
     onClose: () => void;
     explanation: string;
 }
 
-export function CoachModal({ isOpen, onClose, explanation }: CoachModalProps) {
-    const [isThinking, setIsThinking] = useState(true);
+export function CoachModal({ isOpen, isLoading, onClose, explanation }: CoachModalProps) {
+    // We pass the explanation to typewriter ONLY when not loading
     const { displayedText, isComplete } = useTypewriter(
-        isThinking ? '' : explanation,
-        25, // Fast typing speed
+        isLoading ? '' : explanation,
+        25, // Speed
         0
     );
-
-    useEffect(() => {
-        if (isOpen) {
-            setIsThinking(true);
-            // Simulate "thinking" for 1.5 seconds
-            const timer = setTimeout(() => {
-                setIsThinking(false);
-            }, 1500);
-
-            return () => clearTimeout(timer);
-        }
-    }, [isOpen]);
 
     return (
         <AnimatePresence>
@@ -55,14 +44,15 @@ export function CoachModal({ isOpen, onClose, explanation }: CoachModalProps) {
                             {/* Header */}
                             <div className="flex items-center justify-between p-6 border-b border-slate-200">
                                 <div className="flex items-center gap-3">
-                                    {/* Coach Avatar - Pulsing Brain Icon */}
+                                    {/* Avatar Animation */}
                                     <motion.div
-                                        animate={isThinking ? {
+                                        animate={isLoading ? {
                                             scale: [1, 1.1, 1],
+                                            rotate: [0, 5, -5, 0]
                                         } : {}}
                                         transition={{
                                             duration: 1.5,
-                                            repeat: isThinking ? Infinity : 0,
+                                            repeat: isLoading ? Infinity : 0,
                                             ease: 'easeInOut'
                                         }}
                                         className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-blue to-blue-600 flex items-center justify-center border-4 border-blue-200 shadow-lg"
@@ -72,7 +62,7 @@ export function CoachModal({ isOpen, onClose, explanation }: CoachModalProps) {
 
                                     <div>
                                         <h3 className="font-black text-lg text-slate-800">AI Coach</h3>
-                                        <p className="text-xs text-slate-500">Strategic Analysis</p>
+                                        <p className="text-xs text-slate-500">Powered by Gemini</p>
                                     </div>
                                 </div>
 
@@ -85,17 +75,15 @@ export function CoachModal({ isOpen, onClose, explanation }: CoachModalProps) {
                             </div>
 
                             {/* Body */}
-                            <div className="p-6 max-h-[60vh] overflow-y-auto">
-                                {isThinking ? (
+                            <div className="p-6 min-h-[150px] max-h-[60vh] overflow-y-auto">
+                                {isLoading ? (
                                     /* Thinking Animation */
-                                    <div className="flex flex-col items-center justify-center py-12">
+                                    <div className="flex flex-col items-center justify-center py-8">
                                         <div className="flex gap-2 mb-4">
                                             {[0, 1, 2].map((i) => (
                                                 <motion.div
                                                     key={i}
-                                                    animate={{
-                                                        y: [0, -12, 0],
-                                                    }}
+                                                    animate={{ y: [0, -12, 0] }}
                                                     transition={{
                                                         duration: 0.6,
                                                         repeat: Infinity,
@@ -106,12 +94,12 @@ export function CoachModal({ isOpen, onClose, explanation }: CoachModalProps) {
                                                 />
                                             ))}
                                         </div>
-                                        <p className="text-slate-500 text-sm font-medium">Analyzing the situation...</p>
+                                        <p className="text-slate-500 text-sm font-medium animate-pulse">Analyzing the hand...</p>
                                     </div>
                                 ) : (
-                                    /* AI Response with Typewriter Effect */
+                                    /* AI Response */
                                     <div className="prose prose-slate max-w-none">
-                                        <p className="text-slate-700 leading-relaxed text-base">
+                                        <p className="text-slate-700 leading-relaxed text-lg font-medium">
                                             {displayedText}
                                             {!isComplete && (
                                                 <motion.span
@@ -126,20 +114,14 @@ export function CoachModal({ isOpen, onClose, explanation }: CoachModalProps) {
                             </div>
 
                             {/* Footer */}
-                            {!isThinking && (
+                            {!isLoading && (
                                 <motion.div
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     transition={{ delay: 0.5 }}
                                     className="p-6 border-t border-slate-200 bg-slate-50/50"
                                 >
-                                    <Button
-                                        variant="primary"
-                                        size="lg"
-                                        fullWidth
-                                        onClick={onClose}
-                                        disabled={!isComplete}
-                                    >
+                                    <Button variant="primary" size="lg" fullWidth onClick={onClose}>
                                         Got it, thanks!
                                     </Button>
                                 </motion.div>

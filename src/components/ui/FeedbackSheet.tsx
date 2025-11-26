@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, Sparkles } from 'lucide-react'; // Added Sparkles
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
@@ -52,7 +52,7 @@ export function FeedbackSheet({ state, message, explanation, onNext, onExpand }:
                         </div>
                     </div>
 
-                    {/* Message */}
+                    {/* Message (Simple) */}
                     <div className={cn(
                         'p-4 rounded-xl border-2',
                         isSuccess
@@ -62,8 +62,20 @@ export function FeedbackSheet({ state, message, explanation, onNext, onExpand }:
                         <p className="text-sm leading-relaxed font-bold">{message}</p>
                     </div>
 
-                    {/* Explanation Logic */}
-                    {explanation ? (
+                    {/* AI Coach Trigger Button (Replaces Inline Text) */}
+                    {/* Only show if we have an onExpand handler and NOT showing inline text */}
+                    {!explanation && onExpand && (
+                        <button
+                            onClick={onExpand}
+                            className="w-full py-3 bg-white/80 hover:bg-white border-2 border-brand-blue/30 rounded-xl flex items-center justify-center gap-2 text-brand-blue font-bold transition-all shadow-sm hover:shadow-md active:scale-95"
+                        >
+                            <Sparkles className="w-5 h-5" />
+                            {isSuccess ? 'Why is this correct?' : 'Ask AI Coach why I lost'}
+                        </button>
+                    )}
+
+                    {/* Inline Explanation (Fallback) */}
+                    {explanation && (
                         <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
@@ -71,15 +83,6 @@ export function FeedbackSheet({ state, message, explanation, onNext, onExpand }:
                         >
                             {explanation}
                         </motion.div>
-                    ) : (
-                        isSuccess && onExpand && (
-                            <button
-                                onClick={onExpand}
-                                className="text-sm text-slate-500 hover:text-slate-700 underline decoration-dotted mt-2 flex items-center gap-1 font-medium transition-colors"
-                            >
-                                💡 Why was this right?
-                            </button>
-                        )
                     )}
 
                     {/* Action Button */}

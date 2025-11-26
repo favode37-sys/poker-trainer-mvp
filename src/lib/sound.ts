@@ -35,7 +35,7 @@ class SoundEngine {
 
             oscillator.start(ctx.currentTime);
             oscillator.stop(ctx.currentTime + duration);
-        } catch (e) {
+        } catch (e: unknown) {
             console.warn('Failed to play sound:', e);
         }
     }
@@ -70,7 +70,7 @@ class SoundEngine {
                 oscillator.start(startTime);
                 oscillator.stop(startTime + 0.3);
             });
-        } catch (e) {
+        } catch (e: unknown) {
             console.warn('Failed to play success sound:', e);
         }
     }
@@ -96,7 +96,7 @@ class SoundEngine {
 
             oscillator.start(ctx.currentTime);
             oscillator.stop(ctx.currentTime + 0.2);
-        } catch (e) {
+        } catch (e: unknown) {
             console.warn('Failed to play error sound:', e);
         }
     }
@@ -127,7 +127,7 @@ class SoundEngine {
                 oscillator.start(startTime);
                 oscillator.stop(startTime + 0.4);
             });
-        } catch (e) {
+        } catch (e: unknown) {
             console.warn('Failed to play level complete sound:', e);
         }
     }
@@ -151,7 +151,7 @@ class SoundEngine {
     init() {
         try {
             this.getContext();
-        } catch (e) {
+        } catch (e: unknown) {
             console.warn('Failed to initialize audio:', e);
         }
     }

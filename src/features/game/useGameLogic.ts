@@ -1,24 +1,26 @@
 import { useState } from 'react';
-import { REAL_SCENARIOS } from './scenarios';
+import { scenarios } from './scenarios';
 import { type Action } from '@/lib/types';
-import { soundEngine } from '@/lib/sound';
+import { soundEngine } from '@/lib/sound'; // Assuming sound logic is here or handled in UI
 
 export type GameState = 'playing' | 'success' | 'error' | 'levelComplete';
 
 interface UseGameLogicProps {
     scenarioIds?: string[];
     onLevelComplete?: () => void;
+    // New props for global state integration
+    onCorrectAnswer?: () => void;
+    onWrongAnswer?: () => void;
 }
 
-export function useGameLogic({ scenarioIds, onLevelComplete }: UseGameLogicProps = {}) {
-    // Filter scenarios based on provided IDs, or use all scenarios
+export function useGameLogic({ scenarioIds, onLevelComplete, onCorrectAnswer, onWrongAnswer }: UseGameLogicProps = {}) {
     const levelScenarios = scenarioIds
-        ? REAL_SCENARIOS.filter(s => scenarioIds.includes(s.id))
-        : REAL_SCENARIOS;
+        ? scenarios.filter(s => scenarioIds.includes(s.id))
+        : scenarios;
 
     const [currentScenarioIndex, setCurrentScenarioIndex] = useState(0);
-    const [lives, setLives] = useState(100);
-    const [streak, setStreak] = useState(0);
+    // Removed local 'lives' and 'streak' state here. They are now global.
+
     const [gameState, setGameState] = useState<GameState>('playing');
     const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
     const [correctAnswers, setCorrectAnswers] = useState(0);
@@ -32,26 +34,22 @@ export function useGameLogic({ scenarioIds, onLevelComplete }: UseGameLogicProps
         const isCorrect = action === currentScenario.correctAction;
 
         if (isCorrect) {
-            soundEngine.playSuccess();
             setGameState('success');
-            setStreak(prev => prev + 1);
             setCorrectAnswers(prev => prev + 1);
             setFeedbackMessage(`Perfect! ${currentScenario.explanation_simple}`);
+            if (onCorrectAnswer) onCorrectAnswer();
         } else {
-            soundEngine.playError();
             setGameState('error');
-            setLives(prev => Math.max(0, prev - 10));
-            setStreak(0);
             setFeedbackMessage(
                 `Incorrect. The correct answer was "${currentScenario.correctAction}". ${currentScenario.explanation_simple}`
             );
+            if (onWrongAnswer) onWrongAnswer();
         }
     };
 
     const handleNext = () => {
         setFeedbackMessage(null);
 
-        // Check for chained scenario (nextStageId)
         if (currentScenario.nextStageId) {
             const nextIndex = levelScenarios.findIndex(s => s.id === currentScenario.nextStageId);
             if (nextIndex !== -1) {
@@ -61,7 +59,6 @@ export function useGameLogic({ scenarioIds, onLevelComplete }: UseGameLogicProps
             }
         }
 
-        // Check if this was the last scenario
         if (isLastScenario) {
             setGameState('levelComplete');
             if (onLevelComplete) {
@@ -73,24 +70,14 @@ export function useGameLogic({ scenarioIds, onLevelComplete }: UseGameLogicProps
         }
     };
 
-    const resetGame = () => {
-        setCurrentScenarioIndex(0);
-        setLives(100);
-        setStreak(0);
-        setGameState('playing');
-        setFeedbackMessage(null);
-        setCorrectAnswers(0);
-    };
+    // Note: resetGame might need to communicate up to reset level progress if needed
 
     return {
         currentScenario,
-        lives,
-        streak,
         gameState,
         feedbackMessage,
         handleAction,
         handleNext,
-        resetGame,
         progress: ((currentScenarioIndex + 1) / levelScenarios.length) * 100,
         correctAnswers,
         totalQuestions: levelScenarios.length,

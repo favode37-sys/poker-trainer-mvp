@@ -9,11 +9,34 @@
   }
  
   body {
-    @apply bg-white text-slate-900 font-sans antialiased;
+    @apply bg-slate-900 text-slate-900 font-sans antialiased;
   }
 }
 
-/* Custom scrollbar if needed, or other global styles */
-html, body, #root {
+/* Mobile-first container */
+html, body {
   height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  height: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  background: white;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-10px); }
+  40% { transform: translateX(10px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
+
+.animate-shake {
+  animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
 }

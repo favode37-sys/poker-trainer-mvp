@@ -5,19 +5,23 @@ export interface Level {
     title: string;
     subtitle: string;
     status: LevelStatus;
-    scenarios: string[]; // Array of scenario IDs
+    scenarioIds: string[]; // Renamed from scenarios to match App.tsx usage
     icon: string;
     xpReward: number;
 }
 
-export const MOCK_LEVELS: Level[] = [
+export const levels: Level[] = [
     {
         id: 'level-1',
         title: 'The Kitchen',
-        subtitle: 'Master Starting Hands',
+        subtitle: 'Preflop Fundamentals',
         status: 'active',
-        scenarios: [
-            'mda_rule4_preflop_3bet'
+        scenarioIds: [
+            'kitchen_aks_utg',
+            'kitchen_kjo_utg',
+            'kitchen_22_btn',
+            'kitchen_ajo_mp',
+            'kitchen_qq_utg'
         ],
         icon: '🏠',
         xpReward: 100
@@ -27,10 +31,12 @@ export const MOCK_LEVELS: Level[] = [
         title: 'Local Bar',
         subtitle: 'Postflop Value Betting',
         status: 'locked',
-        scenarios: [
-            'mda_rule1_turn_xr',
-            'mda_rule3_give_up_river',
-            'mda_bonus_value_bet'
+        scenarioIds: [
+            'bar_flop_tptk_value',
+            'bar_turn_overpair_call',
+            'bar_river_twopair_value',
+            'bar_flop_middlepair_fold',
+            'bar_turn_flushdraw_raise'
         ],
         icon: '🍺',
         xpReward: 200
@@ -40,8 +46,12 @@ export const MOCK_LEVELS: Level[] = [
         title: 'Underground Club',
         subtitle: 'Discipline & Hero Folds',
         status: 'locked',
-        scenarios: [
-            'mda_rule2_triple_barrel'
+        scenarioIds: [
+            'club_river_raise_fold_tptk',
+            'club_turn_checkraise_fold_overpair',
+            'club_river_triple_barrel_fold',
+            'club_river_allin_fold_topset',
+            'club_river_overbet_fold_flush'
         ],
         icon: '💎',
         xpReward: 300

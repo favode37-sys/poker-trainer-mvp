@@ -20,6 +20,8 @@ export interface Scenario {
     blinds: { sb: number; bb: number };
     heroPosition: string;
     villainPosition: string;
+    heroChipsInFront?: number;
+    villainChipsInFront?: number;
     heroCards: [Card, Card];
     communityCards: Card[];
     potSize: number;
