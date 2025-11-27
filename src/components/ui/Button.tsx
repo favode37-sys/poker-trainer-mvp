@@ -17,14 +17,14 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ({ className, variant = 'primary', size = 'md', fullWidth, ...props }, ref) => {
 
-        const baseStyles = "inline-flex items-center justify-center rounded-xl font-bold uppercase tracking-wider transition-all active:border-b-0 active:translate-y-[4px] focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none"
+        const baseStyles = "inline-flex items-center justify-center rounded-xl font-bold tracking-wide transition-all active:scale-95 focus:outline-none disabled:opacity-50 disabled:pointer-events-none shadow-sm backdrop-blur-sm border border-white/20"
 
         const variants = {
-            primary: "bg-brand-green text-white border-b-4 border-[#46A302] hover:bg-[#46A302]/90", // Green
-            secondary: "bg-brand-blue text-white border-b-4 border-[#1899D6] hover:bg-[#1899D6]/90", // Blue
-            danger: "bg-brand-red text-white border-b-4 border-[#D33E3E] hover:bg-[#D33E3E]/90", // Red
-            outline: "bg-white text-slate-500 border-2 border-slate-200 border-b-4 hover:bg-slate-50 active:border-b-2", // Outline style
-            ghost: "bg-transparent text-slate-500 hover:bg-slate-100 border-transparent",
+            primary: "bg-brand-primary text-brand-dark hover:bg-brand-primary/90 hover:shadow-md",
+            secondary: "bg-brand-accent text-brand-dark hover:bg-brand-accent/90 hover:shadow-md",
+            danger: "bg-functional-error text-brand-dark hover:bg-functional-error/90 hover:shadow-md",
+            outline: "bg-white/40 text-neutral-text-main border-neutral-border hover:bg-white/60",
+            ghost: "bg-transparent text-neutral-text-secondary hover:bg-neutral-bg/50 border-transparent shadow-none",
         }
 
         const sizes = {

@@ -225,21 +225,21 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
     const explanationToPass = null; // Never pass deep text to sheet, forcing the button to appear
 
     return (
-        <div id="game-table-container" className="absolute inset-0 bg-emerald-100 flex flex-col overflow-hidden font-sans">
-            <div className="flex-none relative z-10 bg-white border-b border-slate-200 shadow-sm">
-                <div className="h-2 bg-slate-100 w-full">
-                    <motion.div className="h-full bg-yellow-400 rounded-r-full" initial={{ width: 0 }} animate={{ width: `${progress}%` }} transition={{ duration: 0.5 }} />
+        <div id="game-table-container" className="absolute inset-0 bg-neutral-bg flex flex-col overflow-hidden font-sans">
+            <div className="flex-none relative z-10 glass-panel border-b border-white/50">
+                <div className="h-2 bg-neutral-100 w-full">
+                    <motion.div className="h-full bg-brand-accent rounded-r-full" initial={{ width: 0 }} animate={{ width: `${progress}%` }} transition={{ duration: 0.5 }} />
                 </div>
                 <div className="flex justify-between items-center p-2 px-4 h-14">
-                    <button onClick={onBackToMap} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                        <ArrowLeft className="w-5 h-5 text-slate-600" />
+                    <button onClick={onBackToMap} className="p-2 hover:bg-neutral-100 rounded-full transition-colors">
+                        <ArrowLeft className="w-5 h-5 text-neutral-600" />
                     </button>
                     <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full">
+                        <div className="flex items-center gap-2 bg-white/50 px-3 py-1 rounded-full border border-white/50 shadow-sm">
                             <PokerChip color="blue" size="sm" />
-                            <span className="font-bold text-slate-700 text-sm">${bankroll}</span>
+                            <span className="font-bold text-neutral-800 text-sm">${bankroll}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-brand-red font-bold bg-red-50 px-3 py-1 rounded-full border border-red-100">
+                        <div className="flex items-center gap-1 text-orange-500 font-bold bg-orange-50 px-3 py-1 rounded-full border border-orange-100 shadow-sm">
                             <Flame className="w-5 h-5 fill-current" />
                             <span>{streak}</span>
                         </div>
@@ -260,7 +260,7 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
 
                 {/* Dealer Button for Hero - Derived from Engine Config (Seat 1) */}
                 {seatConfigs[0].isDealer && (
-                    <div className="absolute -top-6 -right-2 sm:-top-4 sm:-right-4 h-6 w-6 sm:h-8 sm:w-8 bg-yellow-400 border-2 border-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold text-slate-900 z-40 shadow-md">
+                    <div className="absolute -top-6 -right-2 sm:-top-4 sm:-right-4 h-6 w-6 sm:h-8 sm:w-8 bg-white border border-neutral-300 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold text-neutral-800 z-40 shadow-sm">
                         D
                     </div>
                 )}
@@ -268,9 +268,9 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                 {/* Hero Chips - Explicit Logic */}
                 {heroChipsInFront > 0 && (
                     <div className="absolute -top-12 sm:-top-10 left-1/2 -translate-x-1/2 flex flex-col items-center z-30">
-                        <div className="bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded-full border border-white/20 flex items-center gap-1 shadow-sm whitespace-nowrap">
-                            <Coins className="w-3 h-3 text-yellow-400" />
-                            <span className="text-white text-xs font-bold">{heroChipsInFront} BB</span>
+                        <div className="bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full border border-neutral-200 flex items-center gap-1 shadow-sm whitespace-nowrap">
+                            <Coins className="w-3 h-3 text-brand-accent" />
+                            <span className="text-neutral-800 text-xs font-bold">{heroChipsInFront} BB</span>
                         </div>
                     </div>
                 )}
@@ -283,18 +283,18 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                         transition={{ delay: 0.2 + index * 0.1, type: 'spring', stiffness: 150 }}
                         className="origin-bottom"
                     >
-                        <PlayingCard card={card} size="lg" className="shadow-2xl ring-2 ring-yellow-400" />
+                        <PlayingCard card={card} size="lg" className="shadow-2xl ring-2 ring-brand-accent/50" />
                     </motion.div>
                 ))}
             </div>
 
-            <div className="flex-none bg-white rounded-t-3xl shadow-[0_-4px_30px_rgba(0,0,0,0.1)] p-4 pb-8 space-y-3 z-20 relative">
+            <div className="flex-none glass-panel rounded-t-3xl p-4 pb-8 space-y-3 z-20 relative border-t border-white/50">
                 <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
                     <Button variant="danger" size="lg" className="col-span-1 h-12 text-sm sm:text-base px-2" onClick={() => handleActionWithSound('Fold')} disabled={gameState !== 'playing'}>FOLD</Button>
                     <Button
                         variant={isCheck ? "outline" : "primary"}
                         size="lg"
-                        className={`col-span-1 h-12 text-sm sm:text-base px-2 ${isCheck ? "bg-slate-100 border-slate-300 text-slate-600 hover:bg-slate-200" : ""}`}
+                        className={`col-span-1 h-12 text-sm sm:text-base px-2 ${isCheck ? "bg-white/50 text-neutral-600 hover:bg-white/80" : ""}`}
                         onClick={() => handleActionWithSound('Call')}
                         disabled={gameState !== 'playing'}
                     >

@@ -29,11 +29,11 @@ export function LevelCompleteModal({
                 numberOfPieces={500}
                 gravity={0.3}
             />
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="fixed inset-0 bg-neutral-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                 <motion.div
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl"
+                    className="glass-panel rounded-3xl p-8 max-w-md w-full shadow-2xl border border-white/50"
                 >
                     {/* Trophy Animation */}
                     <motion.div
@@ -42,8 +42,8 @@ export function LevelCompleteModal({
                         transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
                         className="flex justify-center mb-6"
                     >
-                        <div className="w-24 h-24 bg-yellow-400 rounded-full flex items-center justify-center border-8 border-yellow-500 shadow-lg">
-                            <Trophy className="w-12 h-12 text-white" />
+                        <div className="w-24 h-24 bg-brand-accent rounded-full flex items-center justify-center border-8 border-white shadow-lg">
+                            <Trophy className="w-12 h-12 text-brand-dark" />
                         </div>
                     </motion.div>
 
@@ -54,10 +54,10 @@ export function LevelCompleteModal({
                         transition={{ delay: 0.4 }}
                         className="text-center mb-8"
                     >
-                        <h2 className="text-3xl font-black text-slate-800 mb-2">
+                        <h2 className="text-3xl font-black text-neutral-800 mb-2">
                             Level Cleared!
                         </h2>
-                        <p className="text-slate-600">
+                        <p className="text-neutral-600">
                             {levelTitle}
                         </p>
                     </motion.div>
@@ -70,24 +70,24 @@ export function LevelCompleteModal({
                         className="space-y-4 mb-8"
                     >
                         {/* XP Earned */}
-                        <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-xl border-2 border-yellow-200">
+                        <div className="flex items-center justify-between p-4 bg-brand-accent/20 rounded-xl border border-brand-accent/50">
                             <div className="flex items-center gap-2">
-                                <Star className="w-6 h-6 text-yellow-500 fill-current" />
-                                <span className="font-bold text-slate-700">XP Earned</span>
+                                <Star className="w-6 h-6 text-brand-accent fill-current" />
+                                <span className="font-bold text-neutral-700">XP Earned</span>
                             </div>
-                            <span className="text-2xl font-black text-yellow-600">+{xpEarned}</span>
+                            <span className="text-2xl font-black text-brand-accent">+{xpEarned}</span>
                         </div>
 
                         {/* Accuracy */}
-                        <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border-2 border-green-200">
-                            <span className="font-bold text-slate-700">Accuracy</span>
-                            <span className="text-2xl font-black text-green-600">{accuracy}%</span>
+                        <div className="flex items-center justify-between p-4 bg-functional-success/20 rounded-xl border border-functional-success/50">
+                            <span className="font-bold text-neutral-700">Accuracy</span>
+                            <span className="text-2xl font-black text-functional-success">{accuracy}%</span>
                         </div>
 
                         {/* Questions Answered */}
-                        <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
-                            <span className="font-bold text-slate-700">Questions</span>
-                            <span className="text-2xl font-black text-blue-600">
+                        <div className="flex items-center justify-between p-4 bg-brand-primary/20 rounded-xl border border-brand-primary/50">
+                            <span className="font-bold text-neutral-700">Questions</span>
+                            <span className="text-2xl font-black text-brand-primary">
                                 {correctAnswers}/{totalQuestions}
                             </span>
                         </div>

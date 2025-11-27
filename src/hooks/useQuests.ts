@@ -21,6 +21,14 @@ const QUEST_TEMPLATES: Omit<Quest, 'progress' | 'isCompleted'>[] = [
 const STORAGE_KEY_QUESTS = 'poker-trainer-quests';
 const STORAGE_KEY_QUEST_DATE = 'poker-trainer-quest-date';
 
+// Helper to generate new random quests
+const generateNewQuests = (): Quest[] => {
+    return QUEST_TEMPLATES
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 3)
+        .map(q => ({ ...q, progress: 0, isCompleted: false }));
+};
+
 export function useQuests() {
     const { updateBankroll } = usePlayerState();
     const [quests, setQuests] = useState<Quest[]>([]);
@@ -33,10 +41,7 @@ export function useQuests() {
 
         if (lastDate !== today || !savedQuests) {
             // New day -> Generate 3 random quests
-            const newQuests = QUEST_TEMPLATES
-                .sort(() => 0.5 - Math.random())
-                .slice(0, 3)
-                .map(q => ({ ...q, progress: 0, isCompleted: false }));
+            const newQuests = generateNewQuests();
 
             setQuests(newQuests);
             localStorage.setItem(STORAGE_KEY_QUEST_DATE, today);
@@ -76,5 +81,12 @@ export function useQuests() {
         }));
     };
 
-    return { quests, updateQuestProgress };
+    const resetQuests = () => {
+        const newQuests = generateNewQuests();
+        setQuests(newQuests);
+        localStorage.setItem(STORAGE_KEY_QUEST_DATE, new Date().toDateString());
+        localStorage.setItem(STORAGE_KEY_QUESTS, JSON.stringify(newQuests));
+    };
+
+    return { quests, updateQuestProgress, resetQuests };
 }

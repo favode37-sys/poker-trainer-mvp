@@ -9,17 +9,34 @@ export default {
     theme: {
         extend: {
             colors: {
-                'brand-green': '#58CC02',
-                'brand-red': '#FF4B4B',
-                'brand-blue': '#1CB0F6',
-                'surface-gray': '#E5E5E5',
+                // New Brand Palette
+                brand: {
+                    primary: '#A3DAD0', // Pastel Turquoise
+                    accent: '#F4D3B2',  // Sand Orange
+                    dark: '#212121',    // Dark Gray (Text)
+                },
+                functional: {
+                    success: '#A8D5A2', // Pastel Green
+                    error: '#F5B1B1',   // Pastel Red
+                    warning: '#FDE68A', // Pastel Yellow
+                },
+                neutral: {
+                    bg: '#F9FAFB',      // Off-white background
+                    surface: '#FFFFFF', // Pure white surface
+                    text: {
+                        main: '#333333',
+                        secondary: '#666666',
+                    },
+                    border: '#E5E7EB',
+                },
+                // Legacy seat colors (muted for new style)
                 seat: {
-                    1: colors.blue[600],
-                    2: colors.red[600],
-                    3: colors.emerald[600],
-                    4: colors.purple[600],
-                    5: colors.orange[600],
-                    6: colors.cyan[600],
+                    1: colors.blue[400],
+                    2: colors.red[400],
+                    3: colors.emerald[400],
+                    4: colors.purple[400],
+                    5: colors.orange[400],
+                    6: colors.cyan[400],
                 },
             },
         },

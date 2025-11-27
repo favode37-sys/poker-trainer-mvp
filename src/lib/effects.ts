@@ -31,3 +31,19 @@ export const triggerShake = (elementId: string) => {
         el.classList.add('animate-shake');
     }
 };
+
+export const triggerHaptic = (type: 'light' | 'success' | 'error') => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        switch (type) {
+            case 'light':
+                navigator.vibrate(10);
+                break;
+            case 'success':
+                navigator.vibrate([10, 30, 10]);
+                break;
+            case 'error':
+                navigator.vibrate([50, 30, 50]);
+                break;
+        }
+    }
+};

@@ -8,15 +8,15 @@ interface PokerChipProps {
 }
 
 const colorClasses = {
-    red: 'bg-brand-red border-[#D33E3E]',
-    blue: 'bg-brand-blue border-[#1899D6]',
-    green: 'bg-brand-green border-[#46A302]',
+    red: 'bg-functional-error border-functional-error',
+    blue: 'bg-blue-300 border-blue-300',
+    green: 'bg-functional-success border-functional-success',
 };
 
 const sizeClasses = {
-    sm: 'w-6 h-6 border-b-2',
-    md: 'w-10 h-10 border-b-4',
-    lg: 'w-14 h-14 border-b-4',
+    sm: 'w-6 h-6 border',
+    md: 'w-10 h-10 border',
+    lg: 'w-14 h-14 border',
 };
 
 export function PokerChip({ value, color = 'red', size = 'md', className }: PokerChipProps) {

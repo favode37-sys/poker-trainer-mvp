@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { CareerMap } from '@/features/map/CareerMap';
 import { GameTable } from '@/features/game/GameTable';
 import { BlitzMode } from '@/features/game/BlitzMode';
 import { HandAnalyzer } from '@/features/tools/HandAnalyzer';
+import { AdminDashboard } from '@/features/admin/AdminDashboard';
 import { levels } from '@/features/map/levels';
-import { scenarios } from '@/features/game/scenarios';
 import { usePlayerState } from '@/hooks/usePlayerState';
 import { useQuests, type Quest } from '@/hooks/useQuests';
 
@@ -18,9 +18,9 @@ export default function App() {
     resetProgress
   } = usePlayerState();
 
-  const { quests, updateQuestProgress } = useQuests();
+  const { quests, updateQuestProgress, resetQuests } = useQuests();
 
-  const [currentScreen, setCurrentScreen] = useState<'map' | 'game' | 'blitz' | 'analyzer'>('map');
+  const [currentScreen, setCurrentScreen] = useState<'map' | 'game' | 'blitz' | 'analyzer' | 'admin'>('map');
   const [selectedLevelId, setSelectedLevelId] = useState<string | null>(null);
 
   const handleLevelSelect = (levelId: string) => {
@@ -39,6 +39,11 @@ export default function App() {
 
   const handleQuestEvent = (type: Quest['type'], value: number = 1) => {
     updateQuestProgress(type, value);
+  };
+
+  const handleFullReset = () => {
+    resetProgress();
+    resetQuests();
   };
 
   // Prepare levels with status
@@ -60,9 +65,10 @@ export default function App() {
         <CareerMap
           levels={mapLevels}
           onLevelSelect={handleLevelSelect}
-          onResetProgress={resetProgress}
+          onResetProgress={handleFullReset}
           onBlitzClick={() => setCurrentScreen('blitz')}
           onAnalyzerClick={() => setCurrentScreen('analyzer')}
+          onAdminClick={() => setCurrentScreen('admin')}
           bankroll={bankroll}
           streak={streak}
           quests={quests}
@@ -93,6 +99,10 @@ export default function App() {
 
       {currentScreen === 'analyzer' && (
         <HandAnalyzer onBack={handleBackToMap} />
+      )}
+
+      {currentScreen === 'admin' && (
+        <AdminDashboard onBack={handleBackToMap} />
       )}
     </>
   );

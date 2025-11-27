@@ -28,12 +28,10 @@ export function TableLayout({ seats, communityCards, potSize }: TableLayoutProps
     return (
         // Added `scale-90 sm:scale-100` to wrapper for small screens
         <div className="relative w-full h-full scale-[0.85] xs:scale-95 sm:scale-100 transition-transform duration-300">
-            {/* The Felt */}
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 to-emerald-900 rounded-[100px] sm:rounded-[120px] border-4 sm:border-8 border-emerald-800 shadow-[inset_0_4px_30px_rgba(0,0,0,0.3)]">
-                <div className="absolute inset-0 opacity-5 bg-[url('https://www.transparenttextures.com/patterns/felt.png')] rounded-[90px]" />
-                <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] select-none pointer-events-none">
-                    <span className="text-6xl sm:text-8xl font-black text-white rotate-90 tracking-widest">POKER</span>
-                </div>
+            {/* The Felt - Minimalist Neutral */}
+            <div className="absolute inset-0 bg-gradient-to-br from-neutral-100 to-neutral-200 rounded-[100px] sm:rounded-[120px] border-[12px] border-neutral-300 shadow-[inset_0_4px_20px_rgba(0,0,0,0.05),0_20px_40px_-10px_rgba(0,0,0,0.1)]">
+                {/* Inner Ring for depth */}
+                <div className="absolute inset-4 border border-neutral-300/50 rounded-[90px] opacity-50" />
             </div>
 
             {/* SEAT POSITIONS (Optimized for Mobile) */}
@@ -91,14 +89,14 @@ export function TableLayout({ seats, communityCards, potSize }: TableLayoutProps
                                 transition={{ delay: index * 0.1, type: 'spring', stiffness: 200 }}
                             >
                                 <div className="w-10 h-14 sm:w-14 sm:h-20">
-                                    <PlayingCard card={card} size="md" className="shadow-lg w-full h-full text-sm sm:text-lg" />
+                                    <PlayingCard card={card} size="md" className="shadow-sm w-full h-full text-sm sm:text-lg" />
                                 </div>
                             </motion.div>
                         ))}
                         {Array.from({ length: 5 - communityCards.length }).map((_, i) => (
                             <div
                                 key={`empty-${i}`}
-                                className="w-10 h-14 sm:w-14 sm:h-20 rounded bg-white/5 border-2 border-white/20 border-dashed"
+                                className="w-10 h-14 sm:w-14 sm:h-20 rounded-xl bg-neutral-200/50 border-2 border-neutral-300 border-dashed"
                             />
                         ))}
                     </>
@@ -107,22 +105,22 @@ export function TableLayout({ seats, communityCards, potSize }: TableLayoutProps
                         {Array.from({ length: 5 }).map((_, i) => (
                             <div
                                 key={`preflop-${i}`}
-                                className="w-10 h-14 sm:w-14 sm:h-20 rounded bg-white/5 border-2 border-white/20 border-dashed"
+                                className="w-10 h-14 sm:w-14 sm:h-20 rounded-xl bg-neutral-200/50 border-2 border-neutral-300 border-dashed"
                             />
                         ))}
                     </div>
                 )}
             </div>
 
-            {/* Pot Info - Improved readability */}
+            {/* Pot Info - Glassmorphism */}
             <motion.div
                 initial={{ opacity: 0, scale: 0.8, x: "-50%" }}
                 animate={{ opacity: 1, scale: 1, x: "-50%" }}
-                className="absolute top-[62%] left-1/2 mt-2 sm:mt-4 bg-black/50 backdrop-blur-md px-3 py-1 sm:px-4 sm:py-1.5 rounded-full border border-white/30 z-10 shadow-lg whitespace-nowrap"
+                className="absolute top-[62%] left-1/2 mt-2 sm:mt-4 glass-panel px-3 py-1 sm:px-4 sm:py-1.5 rounded-full z-10 whitespace-nowrap"
             >
                 <div className="flex items-center gap-2">
-                    <span className="text-yellow-400 text-xs sm:text-sm">🪙</span>
-                    <span className="text-white font-black text-xs sm:text-sm tracking-wide">{potSize} BB</span>
+                    <span className="text-brand-accent text-xs sm:text-sm">🪙</span>
+                    <span className="text-neutral-800 font-black text-xs sm:text-sm tracking-wide">{potSize} BB</span>
                 </div>
             </motion.div>
         </div>

@@ -97,5 +97,58 @@ export const geminiService = {
             console.error(error);
             return "Analysis failed. Please try again.";
         }
+    },
+
+    async generateBlitzScenarios(count: number): Promise<any[]> {
+        if (!API_KEY) throw new Error("API Key missing");
+
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash",
+            generationConfig: {
+                responseMimeType: "application/json"
+            }
+        });
+
+        const prompt = `Generate ${count} poker scenarios for "Blitz Mode" training. Output as JSON array with this exact structure:
+[{
+  "id": "blitz_unique123",
+  "title": "Scenario Title",
+  "levelId": "blitz",
+  "street": "preflop",
+  "blinds": {"sb": 0.5, "bb": 1},
+  "heroPosition": "BTN",
+  "villainPosition": "BB",
+  "heroCards": [{"rank": "A", "suit": "hearts"}, {"rank": "K", "suit": "hearts"}],
+  "communityCards": [],
+  "potSize": 1.5,
+  "heroChipsInFront": 0,
+  "villainChipsInFront": 0,
+  "actionHistory": ["Villain posts BB"],
+  "villainAction": "Post BB",
+  "amountToCall": 1,
+  "defaultRaiseAmount": 3,
+  "correctAction": "Raise",
+  "explanation_simple": "Short explanation",
+  "explanation_deep": "Detailed coaching advice"
+}]
+
+Rules:
+- Generate a balanced mix of Preflop, Flop, Turn, and River decisions.
+- "street" must be "preflop", "flop", "turn", or "river".
+- Ensure "street" matches communityCards count (0=preflop, 3=flop, 4=turn, 5=river).
+- Vary positions, hand types, and scenarios.
+- correctAction must be "Fold", "Call", or "Raise".
+- suits must be "hearts", "diamonds", "clubs", or "spades".
+- ranks: A, K, Q, J, T, 9, 8, 7, 6, 5, 4, 3, 2.
+- Focus on exploitative micro-stakes strategy.`;
+
+        try {
+            const result = await model.generateContent(prompt);
+            const text = result.response.text();
+            return JSON.parse(text);
+        } catch (error) {
+            console.error("Gemini Error:", error);
+            throw error;
+        }
     }
 };

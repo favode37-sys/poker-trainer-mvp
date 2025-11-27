@@ -29,7 +29,7 @@ export function CoachModal({ isOpen, isLoading, onClose, explanation }: CoachMod
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-black/40 z-40"
+                        className="fixed inset-0 bg-neutral-900/40 backdrop-blur-sm z-40"
                     />
 
                     {/* Modal */}
@@ -40,9 +40,9 @@ export function CoachModal({ isOpen, isLoading, onClose, explanation }: CoachMod
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                         className="fixed inset-x-0 bottom-0 z-50 max-w-2xl mx-auto"
                     >
-                        <div className="bg-white/95 backdrop-blur-md rounded-t-3xl shadow-2xl border-t-4 border-brand-blue">
+                        <div className="glass-panel rounded-t-3xl shadow-2xl border-t border-white/50">
                             {/* Header */}
-                            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+                            <div className="flex items-center justify-between p-6 border-b border-neutral-200/50">
                                 <div className="flex items-center gap-3">
                                     {/* Avatar Animation */}
                                     <motion.div
@@ -55,22 +55,22 @@ export function CoachModal({ isOpen, isLoading, onClose, explanation }: CoachMod
                                             repeat: isLoading ? Infinity : 0,
                                             ease: 'easeInOut'
                                         }}
-                                        className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-blue to-blue-600 flex items-center justify-center border-4 border-blue-200 shadow-lg"
+                                        className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-primary to-brand-accent flex items-center justify-center border-4 border-white shadow-lg"
                                     >
-                                        <Brain className="w-6 h-6 text-white" />
+                                        <Brain className="w-6 h-6 text-brand-dark" />
                                     </motion.div>
 
                                     <div>
-                                        <h3 className="font-black text-lg text-slate-800">AI Coach</h3>
-                                        <p className="text-xs text-slate-500">Powered by Gemini</p>
+                                        <h3 className="font-black text-lg text-neutral-800">AI Coach</h3>
+                                        <p className="text-xs text-neutral-500">Powered by Gemini</p>
                                     </div>
                                 </div>
 
                                 <button
                                     onClick={onClose}
-                                    className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors"
+                                    className="w-8 h-8 rounded-full hover:bg-neutral-100 flex items-center justify-center transition-colors"
                                 >
-                                    <X className="w-5 h-5 text-slate-400" />
+                                    <X className="w-5 h-5 text-neutral-400" />
                                 </button>
                             </div>
 
@@ -90,22 +90,22 @@ export function CoachModal({ isOpen, isLoading, onClose, explanation }: CoachMod
                                                         delay: i * 0.15,
                                                         ease: 'easeInOut'
                                                     }}
-                                                    className="w-3 h-3 rounded-full bg-brand-blue"
+                                                    className="w-3 h-3 rounded-full bg-brand-primary"
                                                 />
                                             ))}
                                         </div>
-                                        <p className="text-slate-500 text-sm font-medium animate-pulse">Analyzing the hand...</p>
+                                        <p className="text-neutral-500 text-sm font-medium animate-pulse">Analyzing the hand...</p>
                                     </div>
                                 ) : (
                                     /* AI Response */
-                                    <div className="prose prose-slate max-w-none">
-                                        <p className="text-slate-700 leading-relaxed text-lg font-medium">
+                                    <div className="prose prose-neutral max-w-none">
+                                        <p className="text-neutral-700 leading-relaxed text-lg font-medium">
                                             {displayedText}
                                             {!isComplete && (
                                                 <motion.span
                                                     animate={{ opacity: [1, 0, 1] }}
                                                     transition={{ duration: 0.8, repeat: Infinity }}
-                                                    className="inline-block w-0.5 h-5 bg-brand-blue ml-0.5 align-middle"
+                                                    className="inline-block w-0.5 h-5 bg-brand-primary ml-0.5 align-middle"
                                                 />
                                             )}
                                         </p>
@@ -119,7 +119,7 @@ export function CoachModal({ isOpen, isLoading, onClose, explanation }: CoachMod
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     transition={{ delay: 0.5 }}
-                                    className="p-6 border-t border-slate-200 bg-slate-50/50"
+                                    className="p-6 border-t border-neutral-200/50 bg-white/30"
                                 >
                                     <Button variant="primary" size="lg" fullWidth onClick={onClose}>
                                         Got it, thanks!

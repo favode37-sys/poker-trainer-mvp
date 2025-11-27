@@ -18,16 +18,16 @@ const suitIcons = {
 };
 
 const suitColors = {
-    hearts: 'text-red-500 fill-current',
-    diamonds: 'text-red-500 fill-current',
-    clubs: 'text-slate-900 fill-current',
-    spades: 'text-slate-900 fill-current',
+    hearts: 'text-orange-500 fill-current',
+    diamonds: 'text-orange-500 fill-current',
+    clubs: 'text-slate-700 fill-current',
+    spades: 'text-slate-700 fill-current',
 };
 
 const sizeClasses = {
-    sm: 'w-12 h-16 text-xs rounded-md border-b-2',
-    md: 'w-20 h-28 text-lg rounded-lg border-b-[3px]',
-    lg: 'w-24 h-36 text-2xl rounded-xl border-b-4',
+    sm: 'w-12 h-16 text-xs rounded-lg border',
+    md: 'w-20 h-28 text-lg rounded-xl border',
+    lg: 'w-24 h-36 text-2xl rounded-2xl border',
 };
 
 const iconSizes = {
@@ -45,9 +45,9 @@ export function PlayingCard({ card, size = 'md', hidden = false, className }: Pl
             animate={{ scale: 1, opacity: 1 }}
             className={cn(
                 "relative flex flex-col items-center justify-center select-none transition-transform hover:-translate-y-1",
-                "bg-white border-2 border-slate-200 shadow-sm",
+                "bg-white border-neutral-border shadow-sm",
                 sizeClasses[size],
-                hidden && "bg-brand-blue border-brand-blue overflow-hidden",
+                hidden && "bg-brand-primary border-brand-primary overflow-hidden",
                 className
             )}
         >

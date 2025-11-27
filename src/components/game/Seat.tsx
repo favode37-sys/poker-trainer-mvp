@@ -19,27 +19,16 @@ interface SeatProps {
     lastAction?: string;
 }
 
-const SEAT_COLORS = [
-    { border: 'border-red-500', text: 'text-red-600' },       // Pos 1
-    { border: 'border-blue-500', text: 'text-blue-600' },     // Pos 2
-    { border: 'border-emerald-500', text: 'text-emerald-600' }, // Pos 3
-    { border: 'border-purple-500', text: 'text-purple-600' }, // Pos 4
-    { border: 'border-orange-500', text: 'text-orange-600' }, // Pos 5
-    { border: 'border-cyan-500', text: 'text-cyan-600' },     // Pos 6
-];
+
 
 const SEAT_ANIMALS = ['🦊', '🐼', '🦁', '🐻', '🐸', '🦉'];
 
 export function Seat({ position, player, positionLabel, betAmount = 0, isDealer = false, isHero = false, isFolded = false, lastAction }: SeatProps) {
     if (!player) return null;
 
-    const activeColors = SEAT_COLORS[(position - 1) % SEAT_COLORS.length];
     const animal = SEAT_ANIMALS[(position - 1) % SEAT_ANIMALS.length];
 
-    const colors = isFolded ? { border: 'border-slate-300', text: 'text-slate-400' } : activeColors;
-
     // RESPONSIVE CHIP POSITIONING
-    // Mobile: Closer to avatar (-8 / 2rem). Desktop: Standard (-12 / 3rem).
     const getChipPosition = (pos: number) => {
         switch (pos) {
             case 1: return "-top-8 sm:-top-10 left-1/2 -translate-x-1/2";
@@ -53,11 +42,11 @@ export function Seat({ position, player, positionLabel, betAmount = 0, isDealer 
     };
 
     return (
-        <div className={`relative w-20 sm:w-24 rounded-2xl p-1 sm:p-1.5 overflow-visible shadow-[0_8px_16px_-2px_rgba(0,0,0,0.3),0_4px_8px_-2px_rgba(0,0,0,0.15)] border-b-4 transition-all duration-300 ${isFolded ? 'bg-slate-100 opacity-75 border-slate-200' : 'bg-white border-slate-300'}`}>
+        <div className={`relative w-20 sm:w-24 rounded-2xl p-1 transition-all duration-300 ${isFolded ? 'opacity-60 grayscale' : ''}`}>
 
             {/* Dealer Button */}
             {isDealer && (
-                <div className="absolute -top-2 -right-2 h-5 w-5 sm:h-6 sm:w-6 bg-yellow-400 border-2 border-white rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold text-slate-900 z-20 shadow-md">
+                <div className="absolute -top-2 -right-2 h-5 w-5 sm:h-6 sm:w-6 bg-white border border-neutral-300 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold text-neutral-800 z-20 shadow-sm">
                     D
                 </div>
             )}
@@ -71,48 +60,46 @@ export function Seat({ position, player, positionLabel, betAmount = 0, isDealer 
                         exit={{ scale: 0, opacity: 0 }}
                         className={`absolute ${getChipPosition(position)} flex flex-col items-center z-30`}
                     >
-                        <div className="bg-black/60 backdrop-blur-sm px-1.5 py-0.5 sm:px-2 rounded-full border border-white/20 flex items-center gap-1 shadow-sm whitespace-nowrap">
-                            <Coins className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-yellow-400" />
-                            <span className="text-white text-[10px] sm:text-xs font-bold">{betAmount} BB</span>
+                        <div className="bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full border border-neutral-200 flex items-center gap-1 shadow-sm whitespace-nowrap">
+                            <Coins className="w-3 h-3 text-brand-accent" />
+                            <span className="text-neutral-800 text-xs font-bold">{betAmount} BB</span>
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            {/* Active Cards Indicator (Hidden for Hero & Folded) */}
+            {/* Active Cards Indicator */}
             {!isFolded && !isHero && (
                 <div className={`absolute z-20 flex scale-75 sm:scale-100 origin-center ${(position >= 2 && position <= 4)
                     ? "-bottom-1 -right-3 sm:-bottom-2 sm:-right-4"
                     : "-bottom-1 -left-3 sm:-bottom-2 sm:-left-4"
                     }`}>
-                    <div className="w-5 h-7 bg-blue-600 rounded-[2px] border border-white shadow-sm transform -rotate-12 origin-bottom-right"></div>
-                    <div className="w-5 h-7 bg-blue-600 rounded-[2px] border border-white shadow-sm transform rotate-6 -ml-3"></div>
+                    <div className="w-5 h-7 bg-brand-primary rounded-[2px] border border-white shadow-sm transform -rotate-12 origin-bottom-right"></div>
+                    <div className="w-5 h-7 bg-brand-primary rounded-[2px] border border-white shadow-sm transform rotate-6 -ml-3"></div>
                 </div>
             )}
 
-            {/* Inner Content */}
-            <div className={`h-full w-full rounded-xl border-[3px] flex flex-col overflow-hidden ${colors.border} ${isFolded ? 'bg-slate-50' : 'bg-white'}`}>
+            {/* Inner Content - Glassmorphism Card */}
+            <div className={`h-full w-full rounded-xl flex flex-col overflow-hidden bg-white border border-neutral-200 shadow-sm`}>
                 {/* Avatar */}
-                <div className={`flex-[0.45] flex items-center justify-center p-1 ${isFolded ? 'bg-slate-200/50' : 'bg-slate-50/50'}`}>
-                    <div className={`h-10 w-10 sm:h-14 sm:w-14 rounded-full border-2 flex items-center justify-center ${isFolded ? 'bg-slate-100 grayscale opacity-50' : 'bg-white'} ${colors.border}`}>
+                <div className="flex-[0.5] flex items-center justify-center p-1 bg-neutral-50">
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full flex items-center justify-center bg-white border border-neutral-100 shadow-inner text-2xl">
                         {player.avatar ? (
                             <img src={player.avatar} alt={player.name} className="w-full h-full rounded-full object-cover" />
                         ) : (
-                            <span className="text-2xl sm:text-3xl">{animal}</span>
+                            <span>{animal}</span>
                         )}
                     </div>
                 </div>
 
                 {/* Info */}
-                <div className={`flex-1 flex flex-col justify-center gap-0.5 sm:gap-1 ${isFolded ? 'bg-slate-50' : 'bg-white'}`}>
-                    <div className={`flex items-center py-0.5 sm:py-1 text-[10px] sm:text-xs font-bold border-y ${isFolded ? 'text-slate-400 border-slate-300' : `text-slate-700 ${colors.border}`}`}>
-                        <span className={`flex-1 text-center border-r ${isFolded ? 'border-slate-300' : colors.border}`}>{positionLabel || 'POS'}</span>
-                        <span className="flex-1 text-center">
-                            {player.stack}<span className="hidden sm:inline text-[8px] ml-0.5 opacity-70">BB</span>
-                        </span>
+                <div className="flex-1 flex flex-col justify-center gap-0.5 bg-white p-1">
+                    <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold text-neutral-500 border-b border-neutral-100 pb-0.5">
+                        <span>{positionLabel || 'POS'}</span>
+                        <span className="text-neutral-800">{player.stack}</span>
                     </div>
-                    <div className={`px-1 text-center text-xs sm:text-sm font-extrabold truncate leading-tight ${colors.text}`}>
-                        {lastAction || '\u00A0'}
+                    <div className="text-center text-xs sm:text-sm font-bold truncate text-neutral-800 h-5 flex items-center justify-center">
+                        {lastAction || ''}
                     </div>
                 </div>
             </div>

@@ -33,4 +33,5 @@ export interface Scenario {
     explanation_simple: string;
     explanation_deep: string;
     nextStageId?: string;
+    street?: 'preflop' | 'flop' | 'turn' | 'river';
 }

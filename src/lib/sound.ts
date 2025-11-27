@@ -132,6 +132,50 @@ class SoundEngine {
         }
     }
 
+    // Ticking sound for timer
+    playTick() {
+        this.playTone(1000, 0.03, 'sine', 0.1);
+    }
+
+    // Fire/Streak sound - rising swoosh
+    playFire() {
+        if (this.muted) return;
+        try {
+            const ctx = this.getContext();
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+
+            oscillator.type = 'triangle';
+            oscillator.frequency.setValueAtTime(200, ctx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.3);
+
+            gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 0.3);
+        } catch (e) {
+            console.warn(e);
+        }
+    }
+
+    // Badge/Milestone sound - bright chime
+    playBadge() {
+        if (this.muted) return;
+        try {
+            const ctx = this.getContext();
+            const notes = [880, 1108, 1318]; // A5, C#6, E6
+            notes.forEach((freq, i) => {
+                this.playTone(freq, 0.4, 'sine', 0.2);
+            });
+        } catch (e) {
+            console.warn(e);
+        }
+    }
+
     toggleMute(): boolean {
         this.muted = !this.muted;
         localStorage.setItem('poker-sound-muted', String(this.muted));
