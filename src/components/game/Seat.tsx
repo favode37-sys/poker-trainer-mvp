@@ -62,7 +62,7 @@ export function Seat({ position, player, positionLabel, betAmount = 0, isDealer 
                     >
                         <div className="bg-neutral-800 px-2 py-1 rounded-full border border-neutral-700 flex items-center gap-1 shadow-lg whitespace-nowrap">
                             <Coins className="w-3 h-3 text-yellow-400" />
-                            <span className="text-white text-xs font-bold">{betAmount} BB</span>
+                            <span className="text-white text-xs font-bold">${betAmount}</span>
                         </div>
                     </motion.div>
                 )}
@@ -81,16 +81,16 @@ export function Seat({ position, player, positionLabel, betAmount = 0, isDealer 
 
             {/* Inner Content - Glassmorphism Card with opacity effect applied here */}
             <div className={`h-full w-full rounded-xl flex flex-col overflow-hidden border border-neutral-200 transition-all duration-300 ${isFolded
-                    ? 'opacity-40 grayscale blur-[0.5px] scale-95 bg-neutral-100'
-                    : 'scale-100 bg-white shadow-md ring-2 ring-brand-primary/20'
+                ? 'opacity-40 grayscale blur-[0.5px] scale-95 bg-neutral-100'
+                : 'scale-100 bg-white shadow-md ring-2 ring-brand-primary/20'
                 }`}>
                 {/* Avatar */}
                 <div className="flex-[0.5] flex items-center justify-center p-1 bg-neutral-50">
                     <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full flex items-center justify-center bg-white border border-neutral-100 shadow-inner text-2xl">
-                        {player.avatar ? (
+                        {player.avatar && player.avatar.length > 4 ? (
                             <img src={player.avatar} alt={player.name} className="w-full h-full rounded-full object-cover" />
                         ) : (
-                            <span>{animal}</span>
+                            <span className="text-2xl sm:text-3xl">{player.avatar || animal}</span>
                         )}
                     </div>
                 </div>
@@ -99,7 +99,7 @@ export function Seat({ position, player, positionLabel, betAmount = 0, isDealer 
                 <div className="flex-1 flex flex-col justify-center gap-0.5 bg-white p-1">
                     <div className="flex items-center justify-between text-[10px] sm:text-xs font-extrabold border-b border-neutral-100 pb-0.5">
                         <span className="text-neutral-600 tracking-wider">{positionLabel || 'POS'}</span>
-                        <span className="text-black text-sm">{player.stack}</span>
+                        <span className="text-black text-sm">${player.stack}</span>
                     </div>
                     <div className="text-center text-xs sm:text-sm font-bold truncate text-brand-primary h-5 flex items-center justify-center">
                         {lastAction || ''}

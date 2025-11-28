@@ -1,3 +1,5 @@
+import type { BossId } from '../game/boss-profiles';
+
 export type LevelStatus = 'locked' | 'active' | 'completed';
 
 export interface Level {
@@ -8,6 +10,7 @@ export interface Level {
     scenarioIds: string[]; // Renamed from scenarios to match App.tsx usage
     icon: string;
     xpReward: number;
+    bossId?: BossId; // For boss battle levels
 }
 
 export const levels: Level[] = [
@@ -25,6 +28,16 @@ export const levels: Level[] = [
         ],
         icon: '🏠',
         xpReward: 100
+    },
+    {
+        id: 'boss-ted',
+        title: 'Boss Fight: Uncle Ted',
+        subtitle: 'Defeat the Calling Station',
+        status: 'locked',
+        scenarioIds: ['kitchen_aks_utg', 'kitchen_22_btn', 'kitchen_kjo_utg'],
+        icon: '🍺',
+        xpReward: 500,
+        bossId: 'ted_station'
     },
     {
         id: 'level-2',

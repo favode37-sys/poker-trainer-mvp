@@ -10,6 +10,10 @@ import { type Quest } from '@/hooks/useQuests';
 import { triggerHaptic } from '@/lib/effects';
 import { soundEngine } from '@/lib/sound';
 import { leaderboardService, type LeaderboardEntry } from '@/lib/leaderboard';
+import { useAchievements } from '@/hooks/useAchievements';
+import { analytics } from '@/lib/analytics';
+import { statsStore } from '@/lib/stats-store';
+import { usePlayerState } from '@/hooks/usePlayerState';
 
 interface BlitzModeProps {
     onBack: () => void;
@@ -21,13 +25,47 @@ export function BlitzMode({ onBack, onQuestEvent }: BlitzModeProps) {
     const [addedTime, setAddedTime] = useState(false);
     const [milestoneMessage, setMilestoneMessage] = useState<string | null>(null);
     const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
+    const [showVillainAction, setShowVillainAction] = useState(false);
     const prevScoreRef = useRef(0);
 
     const { timeLeft, score, streak, currentScenario, handleAction: logicHandleAction } = useBlitzLogic((finalScore, finalStreak) => {
+        analytics.blitzEnd(finalScore, finalStreak, 'time_up');
         setGameOverScore(finalScore);
         const currentEntry = leaderboardService.saveScore(finalScore, finalStreak);
         setLeaderboardData(leaderboardService.getLeaderboard(currentEntry));
     });
+
+    const { unlock, lastUnlocked } = useAchievements();
+    const { bankroll } = usePlayerState();
+
+    if (!currentScenario) {
+        return (
+            <div className="absolute inset-0 bg-neutral-bg flex flex-col items-center justify-center p-8 text-center font-sans">
+                <div className="w-24 h-24 bg-neutral-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                    <span className="text-4xl">📭</span>
+                </div>
+                <h2 className="text-2xl font-black text-neutral-800 mb-2">No Hands Found</h2>
+                <p className="text-neutral-500 mb-8 leading-relaxed">
+                    The Blitz database is empty. Please visit the Secret Admin Dashboard to generate new scenarios.
+                </p>
+                <Button variant="secondary" size="lg" onClick={onBack}>
+                    Return to Map
+                </Button>
+            </div>
+        );
+    }
+
+    // Track Blitz session start
+    useEffect(() => {
+        analytics.blitzStart();
+    }, []);
+
+    // Delay villain action reveal for suspense
+    useEffect(() => {
+        setShowVillainAction(false);
+        const timer = setTimeout(() => setShowVillainAction(true), 600); // 600ms delay
+        return () => clearTimeout(timer);
+    }, [currentScenario.id]);
 
     // Track score increments for quest progress
     useEffect(() => {
@@ -37,6 +75,14 @@ export function BlitzMode({ onBack, onQuestEvent }: BlitzModeProps) {
         }
         prevScoreRef.current = score;
     }, [score, onQuestEvent]);
+
+    // Achievement unlock triggers
+    useEffect(() => {
+        if (streak === 10) unlock('blitz_streak_10');
+        if (streak === 25) unlock('blitz_streak_25');
+        if (streak === 50) unlock('blitz_streak_50');
+        if (streak === 100) unlock('blitz_streak_100');
+    }, [streak, unlock]);
 
     // Milestone Toast Logic
     useEffect(() => {
@@ -50,6 +96,15 @@ export function BlitzMode({ onBack, onQuestEvent }: BlitzModeProps) {
 
     const handleActionWrapper = (action: any) => {
         const isCorrect = action === currentScenario.correctAction;
+
+        // Record stats
+        statsStore.recordHand(
+            isCorrect,
+            action,
+            currentScenario.correctAction,
+            currentScenario.street || 'preflop',
+            bankroll
+        );
 
         if (isCorrect) {
             triggerHaptic('success');
@@ -84,23 +139,58 @@ export function BlitzMode({ onBack, onQuestEvent }: BlitzModeProps) {
     const seatsArray = seatConfigs.map((config) => {
         if (config.isHero) return undefined;
         if (config.isVillain) {
+            // Calculate display bet with fallback to blinds on Preflop
+            let rawBet = villainChipsInFront;
+
+            // Fallback for Preflop Blinds if no chips shown
+            if (rawBet === 0 && communityCards.length === 0) {
+                if (config.positionLabel === 'SB') rawBet = 0.5;
+                if (config.positionLabel === 'BB') rawBet = 1.0;
+            }
+
+            // Apply delay animation
+            const displayVillainBet = showVillainAction ? rawBet : 0;
+            const displayVillainAction = showVillainAction ? villainAction : '...';
+
             return {
                 player: { name: 'Villain', stack: 100, isActive: true },
-                betAmount: villainChipsInFront,
+                betAmount: displayVillainBet,
                 positionLabel: config.positionLabel,
                 isFolded: false,
-                lastAction: villainAction,
+                lastAction: displayVillainAction,
                 isDealer: config.isDealer,
                 isHero: false
             };
         }
+
+
+        // Filler players (non-Hero, non-Villain)
+        // Everyone is active initially (history length 0). 
+        // Non-blinds fold immediately once any action happens (> 0).
+        let isFillerFolded = currentScenario.actionHistory.length > 0;
+        let fillerBet = 0;
+
+        // Keep blinds active on Preflop ONLY if no actions have occurred yet
+        if (communityCards.length === 0) {
+            if (config.positionLabel === 'SB') {
+                fillerBet = 0.5;
+                // SB stays active longer (until 2nd action)
+                isFillerFolded = currentScenario.actionHistory.length > 1;
+            } else if (config.positionLabel === 'BB') {
+                fillerBet = 1.0;
+                // BB stays active longer (until 2nd action)
+                isFillerFolded = currentScenario.actionHistory.length > 1;
+            }
+        }
+
+
         return {
-            player: { name: `Player ${config.id}`, stack: 100, isActive: false },
+            player: { name: `Player ${config.id}`, stack: 100, isActive: !isFillerFolded },
             positionLabel: config.positionLabel,
-            isFolded: true,
-            lastAction: 'Fold',
+            isFolded: isFillerFolded,
+            lastAction: isFillerFolded ? 'Fold' : '',
             isDealer: config.isDealer,
-            betAmount: 0,
+            betAmount: fillerBet,
             isHero: false
         };
     });
@@ -108,6 +198,24 @@ export function BlitzMode({ onBack, onQuestEvent }: BlitzModeProps) {
     const seats: [any, any, any, any, any, any] = [
         undefined, ...seatsArray.slice(1)
     ] as any;
+
+    // Calculate accurate pot including current bets and blinds (using delayed villain bet)
+    const displayVillainBet = showVillainAction ? villainChipsInFront : 0;
+    const fillerBlinds = (communityCards.length === 0) ? 1.5 : 0; // SB (0.5) + BB (1.0) if Preflop
+    const activePot = potSize + heroChipsInFront + displayVillainBet + fillerBlinds;
+
+    // Calculate Hero display chips with blind fallback
+    const isPreflop = communityCards.length === 0;
+    let heroDisplayChips = heroChipsInFront;
+
+    // Fallback: If Preflop and chips are 0, force display of blinds based on position
+    if (isPreflop && heroDisplayChips === 0) {
+        if (heroPosition === 'SB') heroDisplayChips = 0.5;
+        if (heroPosition === 'BB') heroDisplayChips = 1.0;
+    }
+
+    // Check if Hero is the dealer
+    const isHeroDealer = heroPosition === 'BTN';
     // -----------------------------
 
     return (
@@ -187,15 +295,20 @@ export function BlitzMode({ onBack, onQuestEvent }: BlitzModeProps) {
                 {/* Simplified Table */}
                 <div className="absolute inset-0 flex items-center justify-center p-4">
                     <div className="relative w-full h-full max-w-md">
-                        <TableLayout seats={seats} communityCards={communityCards} potSize={potSize} />
+                        <TableLayout seats={seats} communityCards={communityCards} potSize={activePot} />
                     </div>
                 </div>
 
                 {/* Hero UI Overlay */}
                 <div className="absolute bottom-[20px] left-1/2 -translate-x-1/2 flex gap-2 z-30 origin-bottom scale-[0.8]">
-                    {heroChipsInFront > 0 && (
+                    {heroDisplayChips > 0 && (
                         <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full border border-neutral-200 font-bold text-sm text-neutral-800 shadow-sm">
-                            {heroChipsInFront} BB
+                            ${heroDisplayChips}
+                        </div>
+                    )}
+                    {isHeroDealer && (
+                        <div className="absolute -top-6 -right-2 h-8 w-8 bg-yellow-400 border-2 border-yellow-600 rounded-full flex items-center justify-center text-xs font-black text-black z-40 shadow-md">
+                            D
                         </div>
                     )}
                     {heroCards.map((card, i) => (
@@ -261,6 +374,25 @@ export function BlitzMode({ onBack, onQuestEvent }: BlitzModeProps) {
                     </motion.div>
                 </div>
             )}
+
+            {/* Achievement Unlock Notification */}
+            <AnimatePresence>
+                {lastUnlocked && (
+                    <motion.div
+                        initial={{ y: -100, opacity: 0 }}
+                        animate={{ y: 20, opacity: 1 }}
+                        exit={{ y: -100, opacity: 0 }}
+                        className="fixed top-0 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 text-white px-6 py-4 rounded-b-2xl shadow-2xl border-x-2 border-b-2 border-yellow-500 flex items-center gap-4"
+                    >
+                        <div className="text-4xl">{lastUnlocked.icon}</div>
+                        <div>
+                            <div className="text-xs font-bold text-yellow-500 uppercase tracking-widest">Achievement Unlocked</div>
+                            <div className="text-lg font-black">{lastUnlocked.title}</div>
+                            <div className="text-xs text-slate-400">{lastUnlocked.description}</div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

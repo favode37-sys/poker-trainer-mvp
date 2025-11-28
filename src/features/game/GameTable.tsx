@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Flame, ArrowLeft, Coins } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
@@ -15,6 +15,7 @@ import { analytics } from '@/lib/analytics';
 import { geminiService } from '@/lib/gemini';
 import { playSuccessEffect, playFoldEffect, triggerShake } from '@/lib/effects';
 import { type Quest } from '@/hooks/useQuests';
+import { BOSSES, type BossId } from './boss-profiles';
 
 interface GameTableProps {
     levelId: string;
@@ -27,9 +28,10 @@ interface GameTableProps {
     streak: number;
     updateBankroll: (amount: number) => void;
     onQuestEvent: (type: Quest['type'], amount?: number) => void;
+    bossId?: BossId;
 }
 
-export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelComplete, onBackToMap, bankroll, streak, updateBankroll, onQuestEvent }: GameTableProps) {
+export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelComplete, onBackToMap, bankroll, streak, updateBankroll, onQuestEvent, bossId }: GameTableProps) {
     const {
         currentScenario,
         gameState,
@@ -42,6 +44,7 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
     } = useGameLogic({
         scenarioIds,
         onLevelComplete: () => {
+            analytics.levelComplete(levelId, xpReward);
             console.log('🎊 All scenarios completed for level:', levelId);
         },
         onCorrectAnswer: () => {
@@ -79,6 +82,20 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
     const [isCoachLoading, setIsCoachLoading] = useState(false);
     const [isCoachOpen, setIsCoachOpen] = useState(false);
 
+    // Boss logic
+    const boss = bossId ? BOSSES[bossId] : null;
+    const [villainMessage, setVillainMessage] = useState("");
+    const tableTheme = boss ? boss.colorTheme : undefined;
+
+    // Show boss greeting on mount
+    useEffect(() => {
+        if (boss) {
+            setVillainMessage(boss.phrases.greeting);
+            const timer = setTimeout(() => setVillainMessage(""), 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [boss]);
+
     // Destructure new fields with defaults
     const {
         villainAction,
@@ -109,7 +126,12 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
             const stack = 100 - villainChipsInFront;
 
             return {
-                player: { name: 'Villain', stack: stack, isActive: true },
+                player: {
+                    name: boss ? boss.name : 'Villain',
+                    stack: stack,
+                    isActive: true,
+                    avatar: boss ? boss.avatar : undefined
+                },
                 betAmount: villainChipsInFront, // Explicit bet amount
                 positionLabel: config.positionLabel,
                 isFolded: false,
@@ -150,7 +172,7 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
     // Handler for opening coach
     const handleOpenCoach = async () => {
         setIsCoachOpen(true);
-        analytics.trackCoachOpened(currentScenario.id);
+        analytics.coachOpened(currentScenario.id, 'game_table');
 
         // Only fetch if we haven't already (or force refresh if you prefer)
         if (!coachExplanation) {
@@ -202,7 +224,10 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         // 2. Logic Check
         const isCorrect = action === currentScenario.correctAction;
 
-        // 3. Visual Effects (The Juice)
+        // 3. Analytics Tracking
+        analytics.scenarioResult(currentScenario.id, isCorrect, action);
+
+        // 4. Visual Effects (The Juice)
         if (isCorrect) {
             if (action === 'Fold') {
                 playFoldEffect(); // Specific reward for discipline
@@ -214,7 +239,7 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
             triggerShake('game-table-container');
         }
 
-        // 4. Pass to game logic
+        // 5. Pass to game logic
         handleAction(action);
     };
 
@@ -249,7 +274,21 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
 
             <div className="flex-1 min-h-0 w-full flex items-center justify-center relative p-4">
                 <div className="relative w-full h-full max-w-md">
-                    <TableLayout seats={seats} communityCards={communityCards} potSize={potSize} />
+                    <TableLayout seats={seats} communityCards={communityCards} potSize={potSize} themeClass={tableTheme} />
+
+                    {/* Boss Speech Bubble */}
+                    <AnimatePresence>
+                        {villainMessage && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-white px-4 py-3 rounded-xl rounded-bl-none shadow-xl border-2 border-slate-200 max-w-xs"
+                            >
+                                <p className="text-sm font-bold text-slate-800">{villainMessage}</p>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
 
@@ -270,7 +309,7 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                     <div className="absolute -top-12 sm:-top-10 left-1/2 -translate-x-1/2 flex flex-col items-center z-30">
                         <div className="bg-neutral-900 px-2 py-1 rounded-full border border-neutral-700 flex items-center gap-1 shadow-lg whitespace-nowrap">
                             <Coins className="w-3 h-3 text-yellow-400" />
-                            <span className="text-white text-xs font-bold">{heroChipsInFront} BB</span>
+                            <span className="text-white text-xs font-bold">${heroChipsInFront}</span>
                         </div>
                     </div>
                 )}
@@ -298,10 +337,10 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                         onClick={() => handleActionWithSound('Call')}
                         disabled={gameState !== 'playing'}
                     >
-                        {isCheck ? "CHECK" : <>CALL {amountToCall}<span className="text-xs ml-0.5">BB</span></>}
+                        {isCheck ? "CHECK" : <>CALL ${amountToCall}</>}
                     </Button>
                     <Button variant="secondary" size="lg" className="col-span-1 h-12 text-sm sm:text-base px-2" onClick={() => handleActionWithSound('Raise')} disabled={gameState !== 'playing'}>
-                        {raiseAmount ? <>RAISE {raiseAmount}<span className="text-xs ml-0.5">BB</span></> : 'RAISE'}
+                        {raiseAmount ? <>RAISE ${raiseAmount}</> : 'RAISE'}
                     </Button>
                 </div>
 

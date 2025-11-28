@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
-import { Lock, CheckCircle2, Star, Settings, Zap, Flame, Check, Target, Search } from 'lucide-react';
+import { Lock, CheckCircle2, Star, Settings, Zap, Flame, Check, Target, Search, User } from 'lucide-react';
 import { useState } from 'react';
 import { type Level } from '@/features/map/levels';
 import { cn } from '@/lib/utils';
 import { SettingsModal } from '@/components/ui/SettingsModal';
+import { ProfileModal } from '@/components/ui/ProfileModal';
 import { type Quest } from '@/hooks/useQuests';
 
 interface CareerMapProps {
@@ -13,13 +14,16 @@ interface CareerMapProps {
     onBlitzClick?: () => void;
     onAnalyzerClick?: () => void;
     onAdminClick?: () => void;
+    onStatsClick?: () => void;
+    onPreflopClick?: () => void;
     bankroll: number;
     streak: number;
     quests?: Quest[];
 }
 
-export function CareerMap({ levels, onLevelSelect, onResetProgress, onBlitzClick, onAnalyzerClick, onAdminClick, bankroll, streak, quests = [] }: CareerMapProps) {
+export function CareerMap({ levels, onLevelSelect, onResetProgress, onBlitzClick, onAnalyzerClick, onAdminClick, onStatsClick, onPreflopClick, bankroll, streak, quests = [] }: CareerMapProps) {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [titleClicks, setTitleClicks] = useState(0);
 
     const handleTitleClick = () => {
@@ -51,6 +55,14 @@ export function CareerMap({ levels, onLevelSelect, onResetProgress, onBlitzClick
                             <Flame className={`w-5 h-5 ${streak > 0 ? 'fill-orange-500 text-orange-500' : 'text-neutral-400'}`} />
                             <span className="font-black">{streak}</span>
                         </div>
+
+                        {/* Profile Btn */}
+                        <button
+                            onClick={() => setIsProfileOpen(true)}
+                            className="w-10 h-10 rounded-full bg-white hover:bg-neutral-50 border border-neutral-200 shadow-sm flex items-center justify-center transition-colors"
+                        >
+                            <User className="w-5 h-5 text-neutral-600" />
+                        </button>
 
                         {/* Settings Btn */}
                         <button
@@ -123,17 +135,31 @@ export function CareerMap({ levels, onLevelSelect, onResetProgress, onBlitzClick
             </div>
 
             {/* Hand Detective Button */}
-            <div className="px-6 mt-6 mb-8 max-w-md mx-auto">
+            {/* Tools Grid */}
+            <div className="px-6 mt-6 mb-8 max-w-md mx-auto grid grid-cols-2 gap-3">
                 <button
                     onClick={onAnalyzerClick}
-                    className="w-full bg-white rounded-2xl p-4 shadow-sm border border-neutral-200 flex items-center gap-4 hover:bg-neutral-50 transition-colors text-left group"
+                    className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200 flex flex-col items-center gap-2 hover:bg-neutral-50 transition-colors text-center group"
                 >
-                    <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <Search className="w-6 h-6 text-purple-500" />
+                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Search className="w-5 h-5 text-purple-500" />
                     </div>
                     <div>
-                        <h3 className="font-bold text-neutral-800">Hand Detective</h3>
-                        <p className="text-xs text-neutral-500 font-medium">Analyze your own hands with AI</p>
+                        <h3 className="font-bold text-neutral-800 text-sm">Hand Detective</h3>
+                        <p className="text-[10px] text-neutral-500 font-medium">AI Analysis</p>
+                    </div>
+                </button>
+
+                <button
+                    onClick={onPreflopClick}
+                    className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200 flex flex-col items-center gap-2 hover:bg-neutral-50 transition-colors text-center group"
+                >
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Zap className="w-5 h-5 text-blue-500" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-neutral-800 text-sm">Preflop Drill</h3>
+                        <p className="text-[10px] text-neutral-500 font-medium">Master Ranges</p>
                     </div>
                 </button>
             </div>
@@ -167,6 +193,13 @@ export function CareerMap({ levels, onLevelSelect, onResetProgress, onBlitzClick
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
                 onReset={onResetProgress}
+            />
+
+            {/* Profile Modal */}
+            <ProfileModal
+                isOpen={isProfileOpen}
+                onClose={() => setIsProfileOpen(false)}
+                onOpenStats={onStatsClick}
             />
         </div>
     );

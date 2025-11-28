@@ -4,9 +4,16 @@ import { GameTable } from '@/features/game/GameTable';
 import { BlitzMode } from '@/features/game/BlitzMode';
 import { HandAnalyzer } from '@/features/tools/HandAnalyzer';
 import { AdminDashboard } from '@/features/admin/AdminDashboard';
+import { ScenarioBuilder } from '@/features/admin/ScenarioBuilder';
+import { StatsDashboard } from '@/features/stats/StatsDashboard';
+import { PreflopTrainer } from '@/features/tools/PreflopTrainer';
+import { ChartEditor } from '@/features/admin/ChartEditor';
 import { levels } from '@/features/map/levels';
 import { usePlayerState } from '@/hooks/usePlayerState';
 import { useQuests, type Quest } from '@/hooks/useQuests';
+import { useAchievements } from '@/hooks/useAchievements';
+import { SplashScreen } from '@/components/ui/SplashScreen';
+import { AnimatePresence, motion } from 'framer-motion';
 
 export default function App() {
   const {
@@ -19,9 +26,11 @@ export default function App() {
   } = usePlayerState();
 
   const { quests, updateQuestProgress, resetQuests } = useQuests();
+  const { resetAchievements } = useAchievements();
 
-  const [currentScreen, setCurrentScreen] = useState<'map' | 'game' | 'blitz' | 'analyzer' | 'admin'>('map');
+  const [currentScreen, setCurrentScreen] = useState<'map' | 'game' | 'blitz' | 'analyzer' | 'admin' | 'builder' | 'stats' | 'preflop' | 'chart'>('map');
   const [selectedLevelId, setSelectedLevelId] = useState<string | null>(null);
+  const [isAppStarted, setIsAppStarted] = useState(false);
 
   const handleLevelSelect = (levelId: string) => {
     setSelectedLevelId(levelId);
@@ -44,6 +53,7 @@ export default function App() {
   const handleFullReset = () => {
     resetProgress();
     resetQuests();
+    resetAchievements();
   };
 
   // Prepare levels with status
@@ -59,51 +69,161 @@ export default function App() {
 
   const selectedLevel = levels.find(l => l.id === selectedLevelId);
 
+  if (!isAppStarted) {
+    return <SplashScreen onComplete={() => setIsAppStarted(true)} />;
+  }
+
   return (
-    <>
-      {currentScreen === 'map' && (
-        <CareerMap
-          levels={mapLevels}
-          onLevelSelect={handleLevelSelect}
-          onResetProgress={handleFullReset}
-          onBlitzClick={() => setCurrentScreen('blitz')}
-          onAnalyzerClick={() => setCurrentScreen('analyzer')}
-          onAdminClick={() => setCurrentScreen('admin')}
-          bankroll={bankroll}
-          streak={streak}
-          quests={quests}
-        />
-      )}
+    <div className="w-full h-full overflow-hidden bg-slate-900">
+      <AnimatePresence mode="wait">
+        {currentScreen === 'map' && (
+          <motion.div
+            key="map"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full overflow-y-auto"
+          >
+            <CareerMap
+              levels={mapLevels}
+              onLevelSelect={handleLevelSelect}
+              onResetProgress={handleFullReset}
+              onBlitzClick={() => setCurrentScreen('blitz')}
+              onAnalyzerClick={() => setCurrentScreen('analyzer')}
+              onAdminClick={() => setCurrentScreen('admin')}
+              onStatsClick={() => setCurrentScreen('stats')}
+              onPreflopClick={() => setCurrentScreen('preflop')}
+              bankroll={bankroll}
+              streak={streak}
+              quests={quests}
+            />
+          </motion.div>
+        )}
 
-      {currentScreen === 'game' && selectedLevel && (
-        <GameTable
-          levelId={selectedLevel.id}
-          levelTitle={selectedLevel.title}
-          scenarioIds={selectedLevel.scenarioIds}
-          xpReward={selectedLevel.xpReward}
-          onLevelComplete={handleLevelComplete}
-          onBackToMap={handleBackToMap}
-          bankroll={bankroll}
-          streak={streak}
-          updateBankroll={updateBankroll}
-          onQuestEvent={handleQuestEvent}
-        />
-      )}
+        {currentScreen === 'game' && selectedLevel && (
+          <motion.div
+            key="game"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full"
+          >
+            <GameTable
+              levelId={selectedLevel.id}
+              levelTitle={selectedLevel.title}
+              scenarioIds={selectedLevel.scenarioIds}
+              xpReward={selectedLevel.xpReward}
+              onLevelComplete={handleLevelComplete}
+              onBackToMap={handleBackToMap}
+              bankroll={bankroll}
+              streak={streak}
+              updateBankroll={updateBankroll}
+              onQuestEvent={handleQuestEvent}
+              bossId={selectedLevel.bossId}
+            />
+          </motion.div>
+        )}
 
-      {currentScreen === 'blitz' && (
-        <BlitzMode
-          onBack={handleBackToMap}
-          onQuestEvent={handleQuestEvent}
-        />
-      )}
+        {currentScreen === 'blitz' && (
+          <motion.div
+            key="blitz"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full"
+          >
+            <BlitzMode
+              onBack={handleBackToMap}
+              onQuestEvent={handleQuestEvent}
+            />
+          </motion.div>
+        )}
 
-      {currentScreen === 'analyzer' && (
-        <HandAnalyzer onBack={handleBackToMap} />
-      )}
+        {currentScreen === 'analyzer' && (
+          <motion.div
+            key="analyzer"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full overflow-y-auto"
+          >
+            <HandAnalyzer onBack={handleBackToMap} />
+          </motion.div>
+        )}
 
-      {currentScreen === 'admin' && (
-        <AdminDashboard onBack={handleBackToMap} />
-      )}
-    </>
+        {currentScreen === 'admin' && (
+          <motion.div
+            key="admin"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full overflow-y-auto"
+          >
+            <AdminDashboard
+              onBack={handleBackToMap}
+              onBuilderClick={() => setCurrentScreen('builder')}
+              onChartClick={() => setCurrentScreen('chart')}
+            />
+          </motion.div>
+        )}
+
+        {currentScreen === 'builder' && (
+          <motion.div
+            key="builder"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full overflow-y-auto"
+          >
+            <ScenarioBuilder onBack={() => setCurrentScreen('admin')} />
+          </motion.div>
+        )}
+
+        {currentScreen === 'stats' && (
+          <motion.div
+            key="stats"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full overflow-y-auto"
+          >
+            <StatsDashboard onBack={handleBackToMap} />
+          </motion.div>
+        )}
+
+        {currentScreen === 'preflop' && (
+          <motion.div
+            key="preflop"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full"
+          >
+            <PreflopTrainer onBack={handleBackToMap} />
+          </motion.div>
+        )}
+
+        {currentScreen === 'chart' && (
+          <motion.div
+            key="chart"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full overflow-y-auto"
+          >
+            <ChartEditor onBack={() => setCurrentScreen('admin')} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

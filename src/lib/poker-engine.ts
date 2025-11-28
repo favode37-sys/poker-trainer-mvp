@@ -1,7 +1,46 @@
+import { type Card, type Suit, type Rank } from './types';
+
 export type Position = 'SB' | 'BB' | 'UTG' | 'MP' | 'CO' | 'BTN';
 
 // Жесткий порядок позиций за 6-max столом (по часовой стрелке)
 const POSITION_ORDER: Position[] = ['SB', 'BB', 'UTG', 'MP', 'CO', 'BTN'];
+
+const SUITS: Suit[] = ['spades', 'hearts', 'diamonds', 'clubs'];
+const RANKS: Rank[] = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
+
+export function createDeck(): Card[] {
+    const deck: Card[] = [];
+    for (const suit of SUITS) {
+        for (const rank of RANKS) {
+            deck.push({ rank, suit });
+        }
+    }
+    return deck;
+}
+
+export function shuffleDeck(deck: Card[]): Card[] {
+    const newDeck = [...deck];
+    for (let i = newDeck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newDeck[i], newDeck[j]] = [newDeck[j], newDeck[i]];
+    }
+    return newDeck;
+}
+
+export function drawCards(deck: Card[], count: number, exclude: Card[] = []): { drawn: Card[], remaining: Card[] } {
+    // Filter out excluded cards
+    const excludeStrings = new Set(exclude.map(c => `${c.rank}${c.suit}`));
+    let available = deck.filter(c => !excludeStrings.has(`${c.rank}${c.suit}`));
+
+    // Shuffle
+    available = shuffleDeck(available);
+
+    // Draw
+    const drawn = available.slice(0, count);
+    const remaining = available.slice(count);
+
+    return { drawn, remaining };
+}
 
 interface SeatConfig {
     id: number;           // 1-6 (1 всегда Hero)

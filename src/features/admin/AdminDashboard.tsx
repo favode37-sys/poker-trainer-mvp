@@ -7,9 +7,11 @@ import { scenarioValidator } from '@/lib/validator';
 
 interface AdminDashboardProps {
     onBack: () => void;
+    onBuilderClick: () => void;
+    onChartClick: () => void;
 }
 
-export function AdminDashboard({ onBack }: AdminDashboardProps) {
+export function AdminDashboard({ onBack, onBuilderClick, onChartClick }: AdminDashboardProps) {
     const [isGenerating, setIsGenerating] = useState(false);
     const [logs, setLogs] = useState<string[]>([]);
     const [dbCount, setDbCount] = useState(scenarioStore.getCount());
@@ -179,6 +181,30 @@ export function AdminDashboard({ onBack }: AdminDashboardProps) {
                                 <Layers className="w-5 h-5" /> Generate Full Set (40 hands)
                             </span>
                         )}
+                    </Button>
+
+                    <Button
+                        fullWidth
+                        size="lg"
+                        variant="outline"
+                        onClick={onBuilderClick}
+                        className="h-16 text-lg border-neutral-600 text-neutral-300 hover:bg-neutral-800"
+                    >
+                        <span className="flex items-center gap-2">
+                            🛠️ Manual Builder
+                        </span>
+                    </Button>
+
+                    <Button
+                        fullWidth
+                        size="lg"
+                        variant="outline"
+                        onClick={onChartClick}
+                        className="h-16 text-lg border-neutral-600 text-neutral-300 hover:bg-neutral-800"
+                    >
+                        <span className="flex items-center gap-2">
+                            📊 Chart Editor
+                        </span>
                     </Button>
 
                     <Button

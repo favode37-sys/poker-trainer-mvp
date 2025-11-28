@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { scenarios } from './scenarios';
 import { type Action, type Scenario } from '@/lib/types';
 import { soundEngine } from '@/lib/sound';
 import { playSuccessEffect, triggerShake } from '@/lib/effects';
@@ -16,7 +15,9 @@ const getMultiplier = (streak: number) => {
 export function useBlitzLogic(onGameOver: (score: number, streak: number) => void) {
     // Helper to filter scenarios based on difficulty (streak)
     const getScenariosByDifficulty = (currentStreak: number) => {
-        const all = [...scenarios, ...scenarioStore.getAll()];
+        const all = scenarioStore.getAll();
+
+        if (all.length === 0) return [];
 
         // Define allowed streets based on streak
         const allowedStreets = new Set<string>();
@@ -27,6 +28,9 @@ export function useBlitzLogic(onGameOver: (score: number, streak: number) => voi
         if (currentStreak >= 21) allowedStreets.add('river');
 
         const filtered = all.filter(s => {
+            // Exclude follow-up scenarios (only allow root scenarios)
+            if (s.isFollowUp) return false;
+
             // Use explicit 'street' tag if available
             if (s.street) {
                 return allowedStreets.has(s.street);
@@ -50,9 +54,10 @@ export function useBlitzLogic(onGameOver: (score: number, streak: number) => voi
     const [maxStreak, setMaxStreak] = useState(0);
     const [isActive, setIsActive] = useState(true);
 
-    const [currentScenario, setCurrentScenario] = useState<Scenario>(() => {
+    const [currentScenario, setCurrentScenario] = useState<Scenario | null>(() => {
         // Initial state: Streak is 0, so get easiest scenarios
         const source = getScenariosByDifficulty(0);
+        if (source.length === 0) return null;
         return source[Math.floor(Math.random() * source.length)];
     });
 
@@ -82,12 +87,20 @@ export function useBlitzLogic(onGameOver: (score: number, streak: number) => voi
     // We need to pass the *next* streak value to this function to determine difficulty
     const nextScenario = useCallback((nextStreak: number) => {
         const source = getScenariosByDifficulty(nextStreak);
+        if (source.length === 0) {
+            setCurrentScenario(null);
+            return;
+        }
         const randomIndex = Math.floor(Math.random() * source.length);
         setCurrentScenario(source[randomIndex]);
     }, []);
 
+    const getAllAvailableScenarios = () => {
+        return scenarioStore.getAll();
+    };
+
     const handleAction = (action: Action) => {
-        if (!isActive) return;
+        if (!isActive || !currentScenario) return;
 
         const isCorrect = action === currentScenario.correctAction;
 
@@ -105,6 +118,20 @@ export function useBlitzLogic(onGameOver: (score: number, streak: number) => voi
             setMaxStreak(m => Math.max(m, newStreak));
 
             setTimeLeft(t => Math.min(t + 5, 60)); // Add 5s cap at 60s
+
+            // Check for Linked Scenario (Multi-Street Hand Chain)
+            if (currentScenario.nextStageId) {
+                const all = getAllAvailableScenarios();
+                const nextStage = all.find(s => s.id === currentScenario.nextStageId);
+
+                if (nextStage) {
+                    // Found next part of the hand -> Load it immediately
+                    setCurrentScenario(nextStage);
+                    return; // STOP here, don't do random selection
+                }
+            }
+
+            // No next stage -> Proceed with random selection
             nextScenario(newStreak); // Pass new streak to determine next difficulty
         } else {
             // Failure Logic

@@ -22,16 +22,17 @@ interface TableLayoutProps {
     seats: [SeatData?, SeatData?, SeatData?, SeatData?, SeatData?, SeatData?];
     communityCards: Card[];
     potSize: number;
+    themeClass?: string;
 }
 
-export function TableLayout({ seats, communityCards, potSize }: TableLayoutProps) {
+export function TableLayout({ seats, communityCards, potSize, themeClass }: TableLayoutProps) {
     return (
         // Added `scale-90 sm:scale-100` to wrapper for small screens
         <div className="relative w-full h-full scale-[0.85] xs:scale-95 sm:scale-100 transition-transform duration-300">
             {/* The Felt - Minimalist Neutral */}
-            <div className="absolute inset-0 bg-gradient-to-br from-neutral-100 to-neutral-200 rounded-[100px] sm:rounded-[120px] border-[12px] border-neutral-300 shadow-[inset_0_4px_20px_rgba(0,0,0,0.05),0_20px_40px_-10px_rgba(0,0,0,0.1)]">
+            <div className={`absolute inset-0 rounded-[100px] sm:rounded-[120px] border-[12px] shadow-[inset_0_4px_20px_rgba(0,0,0,0.05),0_20px_40px_-10px_rgba(0,0,0,0.1)] ${themeClass || 'bg-gradient-to-br from-neutral-100 to-neutral-200 border-neutral-300'}`}>
                 {/* Inner Ring for depth */}
-                <div className="absolute inset-4 border border-neutral-300/50 rounded-[90px] opacity-50" />
+                <div className="absolute inset-4 border border-black/10 rounded-[90px] opacity-50" />
             </div>
 
             {/* SEAT POSITIONS (Optimized for Mobile) */}

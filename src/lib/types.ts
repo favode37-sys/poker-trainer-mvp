@@ -13,25 +13,37 @@ export interface GameState {
 
 export type Action = 'Fold' | 'Call' | 'Raise' | 'Check';
 
+export interface Villain {
+    id: string;
+    position: string;
+    stack: number;
+    chipsInFront: number;
+    action: string;
+    cards: Card[]; // Array of 0 or 2 cards
+}
+
 export interface Scenario {
     id: string;
     title: string;
     levelId: string;
     blinds: { sb: number; bb: number };
     heroPosition: string;
-    villainPosition: string;
+    heroStack?: number;
+    villainPosition?: string; // Deprecated, use villains array
     heroChipsInFront?: number;
-    villainChipsInFront?: number;
+    villainChipsInFront?: number; // Deprecated
+    villains?: Villain[];
     heroCards: [Card, Card];
     communityCards: Card[];
     potSize: number;
     actionHistory: string[];
-    villainAction: string;
+    villainAction?: string; // Deprecated
     amountToCall: number;
     defaultRaiseAmount: number;
     correctAction: Action;
     explanation_simple: string;
     explanation_deep: string;
     nextStageId?: string;
+    isFollowUp?: boolean; // Marks scenarios that are part of a chain (not root)
     street?: 'preflop' | 'flop' | 'turn' | 'river';
 }
