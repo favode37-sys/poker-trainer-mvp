@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Scenario } from "./types";
+import { POKER_ENGINE_SYS_PROMPT } from "./poker-prompt";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(API_KEY);
@@ -99,7 +100,7 @@ export const geminiService = {
         }
     },
 
-    async generateBlitzScenarios(count: number): Promise<any[]> {
+    async generateBlitzScenarios(count: number, street?: 'preflop' | 'flop' | 'turn' | 'river'): Promise<any[]> {
         if (!API_KEY) throw new Error("API Key missing");
 
         const model = genAI.getGenerativeModel({
@@ -109,38 +110,36 @@ export const geminiService = {
             }
         });
 
-        const prompt = `Generate ${count} poker scenarios for "Blitz Mode" training. Output as JSON array with this exact structure:
-[{
-  "id": "blitz_unique123",
-  "title": "Scenario Title",
-  "levelId": "blitz",
-  "street": "preflop",
-  "blinds": {"sb": 0.5, "bb": 1},
-  "heroPosition": "BTN",
-  "villainPosition": "BB",
-  "heroCards": [{"rank": "A", "suit": "hearts"}, {"rank": "K", "suit": "hearts"}],
-  "communityCards": [],
-  "potSize": 1.5,
-  "heroChipsInFront": 0,
-  "villainChipsInFront": 0,
-  "actionHistory": ["Villain posts BB"],
-  "villainAction": "Post BB",
-  "amountToCall": 1,
-  "defaultRaiseAmount": 3,
-  "correctAction": "Raise",
-  "explanation_simple": "Short explanation",
-  "explanation_deep": "Detailed coaching advice"
-}]
+        const taskPrompt = `
+           ЗАДАЧА ПОЛЬЗОВАТЕЛЯ:
+           Сгенерируй ${count} раздач.
+           Ограничение: ${street ? "Все раздачи должны доходить строго до улицы '" + street + "'" : "Сбалансированный микс улиц"}.
+           
+           ТРЕБУЕМАЯ JSON СХЕМА (массив объектов Scenario):
+           [
+             {
+               "id": "уникальный_id",
+               "title": "Название сценария",
+               "levelId": "blitz",
+               "street": "preflop" | "flop" | "turn" | "river",
+               "blinds": { "sb": 0.5, "bb": 1 },
+               "heroPosition": "BTN", 
+               "villainPosition": "BB",
+               "heroCards": [{ "rank": "A", "suit": "hearts" }, ...],
+               "communityCards": [], // 0, 3, 4 или 5 карт в зависимости от street
+               "potSize": number, // Точная сумма
+               "heroChipsInFront": number,
+               "villainChipsInFront": number, // Если villainAction="Raise 10", то здесь 10
+               "actionHistory": ["Hero raises 2", "Villain calls"],
+               "villainAction": "Check" | "Bet X" | "Raise to X",
+               "correctAction": "Fold" | "Call" | "Raise",
+               "explanation_simple": "Короткое объяснение (RU)",
+               "explanation_deep": "Подробное объяснение стратегии (RU)"
+             }
+           ]
+         `;
 
-Rules:
-- Generate a balanced mix of Preflop, Flop, Turn, and River decisions.
-- "street" must be "preflop", "flop", "turn", or "river".
-- Ensure "street" matches communityCards count (0=preflop, 3=flop, 4=turn, 5=river).
-- Vary positions, hand types, and scenarios.
-- correctAction must be "Fold", "Call", or "Raise".
-- suits must be "hearts", "diamonds", "clubs", or "spades".
-- ranks: A, K, Q, J, T, 9, 8, 7, 6, 5, 4, 3, 2.
-- Focus on exploitative micro-stakes strategy.`;
+        const prompt = POKER_ENGINE_SYS_PROMPT + "\n\n" + taskPrompt;
 
         try {
             const result = await model.generateContent(prompt);
@@ -148,6 +147,40 @@ Rules:
             return JSON.parse(text);
         } catch (error) {
             console.error("Gemini Error:", error);
+            throw error;
+        }
+    },
+
+    async repairScenario(brokenJson: any, errors: string[]): Promise<any> {
+        if (!API_KEY) throw new Error("API Key missing");
+
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.0-flash-exp",
+            generationConfig: {
+                responseMimeType: "application/json"
+            }
+        });
+
+        const prompt = `The following Poker Scenario JSON has logical errors. FIX IT.
+            
+Errors found:
+${errors.join('\n')}
+
+Broken JSON:
+${JSON.stringify(brokenJson)}
+
+Requirements:
+1. Fix the inconsistencies (e.g., if street is flop, ensure 3 community cards).
+2. Return ONLY the corrected JSON object.
+3. Ensure it matches the Scenario interface strictly.
+4. Maintain the original ID.`;
+
+        try {
+            const result = await model.generateContent(prompt);
+            const text = result.response.text();
+            return JSON.parse(text);
+        } catch (error) {
+            console.error("Repair Error:", error);
             throw error;
         }
     }

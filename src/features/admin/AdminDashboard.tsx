@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ArrowLeft, Database, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, Database, Sparkles, Trash2, Layers, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { geminiService } from '@/lib/gemini';
 import { scenarioStore } from '@/lib/scenario-store';
+import { scenarioValidator } from '@/lib/validator';
 
 interface AdminDashboardProps {
     onBack: () => void;
@@ -12,6 +13,7 @@ export function AdminDashboard({ onBack }: AdminDashboardProps) {
     const [isGenerating, setIsGenerating] = useState(false);
     const [logs, setLogs] = useState<string[]>([]);
     const [dbCount, setDbCount] = useState(scenarioStore.getCount());
+    const [auditStats, setAuditStats] = useState({ total: 0, broken: 0, fixed: 0 });
 
     const addLog = (msg: string) => setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
 
@@ -36,11 +38,77 @@ export function AdminDashboard({ onBack }: AdminDashboardProps) {
         }
     };
 
+    const handleGenerateBatch = async () => {
+        setIsGenerating(true);
+        addLog('🏭 Starting Batch Generation (40 hands)...');
+        const streets = ['preflop', 'flop', 'turn', 'river'] as const;
+
+        try {
+            for (const street of streets) {
+                addLog(`⏳ Generating 10 ${street} scenarios...`);
+                const newScenarios = await geminiService.generateBlitzScenarios(10, street);
+                scenarioStore.addBatch(newScenarios);
+                setDbCount(scenarioStore.getCount());
+                addLog(`✅ Saved 10 ${street} hands.`);
+            }
+            addLog('🎉 Success! Generated 40 balanced scenarios.');
+        } catch (e) {
+            addLog(`❌ Error: ${(e as Error).message}`);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     const handleClear = () => {
         if (confirm('Are you sure? This deletes all AI-generated hands.')) {
             scenarioStore.clear();
             setDbCount(0);
             addLog('🗑️ Database cleared');
+        }
+    };
+
+    const handleAudit = async () => {
+        setIsGenerating(true);
+        addLog('🛡️ Starting Quality Audit...');
+
+        const allScenarios = scenarioStore.getAll();
+        const cleanedScenarios = [];
+        let brokenCount = 0;
+        let fixedCount = 0;
+
+        try {
+            for (const scenario of allScenarios) {
+                const validation = scenarioValidator.validate(scenario);
+
+                if (!validation.isValid) {
+                    brokenCount++;
+                    addLog(`⚠️ Broken: ${scenario.id} - ${validation.errors.join(', ')}`);
+
+                    try {
+                        addLog(`🔧 Attempting AI repair...`);
+                        const fixed = await geminiService.repairScenario(scenario, validation.errors);
+                        cleanedScenarios.push(fixed);
+                        fixedCount++;
+                        addLog(`✅ Repaired: ${scenario.id}`);
+                    } catch (e) {
+                        addLog(`❌ Failed to repair ${scenario.id}: ${(e as Error).message}`);
+                        // Keep the broken one if repair fails
+                        cleanedScenarios.push(scenario);
+                    }
+                } else {
+                    cleanedScenarios.push(scenario);
+                }
+            }
+
+            // Save cleaned database
+            scenarioStore.overrideAll(cleanedScenarios);
+            setDbCount(cleanedScenarios.length);
+            setAuditStats({ total: allScenarios.length, broken: brokenCount, fixed: fixedCount });
+            addLog(`🎉 Audit Complete! Scanned: ${allScenarios.length} | Fixed: ${fixedCount}`);
+        } catch (e) {
+            addLog(`❌ Audit Error: ${(e as Error).message}`);
+        } finally {
+            setIsGenerating(false);
         }
     };
 
@@ -98,6 +166,23 @@ export function AdminDashboard({ onBack }: AdminDashboardProps) {
 
                     <Button
                         fullWidth
+                        size="lg"
+                        variant="secondary"
+                        onClick={handleGenerateBatch}
+                        disabled={isGenerating}
+                        className="h-16 text-lg bg-emerald-600 hover:bg-emerald-700 text-white border-none"
+                    >
+                        {isGenerating ? (
+                            <span className="animate-pulse">Batch Processing...</span>
+                        ) : (
+                            <span className="flex items-center gap-2">
+                                <Layers className="w-5 h-5" /> Generate Full Set (40 hands)
+                            </span>
+                        )}
+                    </Button>
+
+                    <Button
+                        fullWidth
                         variant="danger"
                         onClick={handleClear}
                         disabled={dbCount === 0 || isGenerating}
@@ -106,6 +191,39 @@ export function AdminDashboard({ onBack }: AdminDashboardProps) {
                             <Trash2 className="w-4 h-4" /> Clear Database
                         </span>
                     </Button>
+                </div>
+
+                {/* Quality Control Section */}
+                <div className="bg-neutral-800 rounded-xl p-4 border border-neutral-700 space-y-3">
+                    <h3 className="text-sm font-bold text-neutral-300 uppercase tracking-wider flex items-center gap-2">
+                        <Shield className="w-4 h-4" />
+                        Quality Control
+                    </h3>
+
+                    <Button
+                        fullWidth
+                        variant="outline"
+                        onClick={handleAudit}
+                        disabled={dbCount === 0 || isGenerating}
+                        className="bg-purple-600/10 hover:bg-purple-600/20 border-purple-500/50 text-purple-300"
+                    >
+                        <span className="flex items-center gap-2">
+                            <Shield className="w-4 h-4" /> Audit & Auto-Fix Database
+                        </span>
+                    </Button>
+
+                    {auditStats.total > 0 && (
+                        <div className="flex gap-4 text-xs">
+                            <div className="flex-1 bg-neutral-900 p-2 rounded border border-neutral-700">
+                                <div className="text-neutral-400">Scanned</div>
+                                <div className="text-lg font-bold text-white">{auditStats.total}</div>
+                            </div>
+                            <div className="flex-1 bg-neutral-900 p-2 rounded border border-neutral-700">
+                                <div className="text-neutral-400">Fixed</div>
+                                <div className="text-lg font-bold text-green-400">{auditStats.fixed}</div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Terminal Log */}

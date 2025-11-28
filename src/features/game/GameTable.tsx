@@ -260,7 +260,7 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
 
                 {/* Dealer Button for Hero - Derived from Engine Config (Seat 1) */}
                 {seatConfigs[0].isDealer && (
-                    <div className="absolute -top-6 -right-2 sm:-top-4 sm:-right-4 h-6 w-6 sm:h-8 sm:w-8 bg-white border border-neutral-300 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold text-neutral-800 z-40 shadow-sm">
+                    <div className="absolute -top-6 -right-2 sm:-top-4 sm:-right-4 h-6 w-6 sm:h-8 sm:w-8 bg-yellow-400 border border-yellow-500 text-yellow-950 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold z-40 shadow-md">
                         D
                     </div>
                 )}
@@ -268,9 +268,9 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                 {/* Hero Chips - Explicit Logic */}
                 {heroChipsInFront > 0 && (
                     <div className="absolute -top-12 sm:-top-10 left-1/2 -translate-x-1/2 flex flex-col items-center z-30">
-                        <div className="bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full border border-neutral-200 flex items-center gap-1 shadow-sm whitespace-nowrap">
-                            <Coins className="w-3 h-3 text-brand-accent" />
-                            <span className="text-neutral-800 text-xs font-bold">{heroChipsInFront} BB</span>
+                        <div className="bg-neutral-900 px-2 py-1 rounded-full border border-neutral-700 flex items-center gap-1 shadow-lg whitespace-nowrap">
+                            <Coins className="w-3 h-3 text-yellow-400" />
+                            <span className="text-white text-xs font-bold">{heroChipsInFront} BB</span>
                         </div>
                     </div>
                 )}

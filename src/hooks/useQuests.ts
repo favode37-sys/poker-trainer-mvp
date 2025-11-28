@@ -15,7 +15,7 @@ const QUEST_TEMPLATES: Omit<Quest, 'progress' | 'isCompleted'>[] = [
     { id: 'q1', title: 'Play 5 Hands', target: 5, reward: 50, type: 'play_hands' },
     { id: 'q2', title: 'Win 3 Hands', target: 3, reward: 100, type: 'win_hands' },
     { id: 'q3', title: 'Make 3 Correct Folds', target: 3, reward: 75, type: 'correct_folds' },
-    { id: 'q4', title: 'Score 5 in Blitz', target: 5, reward: 150, type: 'blitz_score' },
+    { id: 'q4', title: 'Score 500 in Blitz', target: 500, reward: 150, type: 'blitz_score' },
 ];
 
 const STORAGE_KEY_QUESTS = 'poker-trainer-quests';

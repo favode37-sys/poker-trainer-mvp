@@ -5,6 +5,14 @@ import { soundEngine } from '@/lib/sound';
 import { playSuccessEffect, triggerShake } from '@/lib/effects';
 import { scenarioStore } from '@/lib/scenario-store';
 
+const BASE_POINTS = 10;
+const getMultiplier = (streak: number) => {
+    if (streak >= 20) return 5;
+    if (streak >= 10) return 3;
+    if (streak >= 5) return 2;
+    return 1;
+};
+
 export function useBlitzLogic(onGameOver: (score: number, streak: number) => void) {
     // Helper to filter scenarios based on difficulty (streak)
     const getScenariosByDifficulty = (currentStreak: number) => {
@@ -87,9 +95,12 @@ export function useBlitzLogic(onGameOver: (score: number, streak: number) => voi
             // Success Logic
             soundEngine.playSuccess();
             playSuccessEffect(); // Confetti
-            setScore(s => s + 1);
 
             const newStreak = streak + 1;
+            const multiplier = getMultiplier(newStreak);
+            const points = BASE_POINTS * multiplier;
+
+            setScore(s => s + points);
             setStreak(newStreak);
             setMaxStreak(m => Math.max(m, newStreak));
 
@@ -105,10 +116,13 @@ export function useBlitzLogic(onGameOver: (score: number, streak: number) => voi
         }
     };
 
+    const multiplier = getMultiplier(streak);
+
     return {
         timeLeft,
         score,
         streak,
+        multiplier,
         currentScenario,
         handleAction,
         isActive

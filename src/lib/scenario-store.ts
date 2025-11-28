@@ -28,5 +28,10 @@ export const scenarioStore = {
 
     getCount: () => {
         return scenarioStore.getAll().length;
+    },
+
+    overrideAll: (scenarios: Scenario[]) => {
+        localStorage.setItem(STORAGE_KEY_DYNAMIC_SCENARIOS, JSON.stringify(scenarios));
+        console.log(`[Store] Overridden database with ${scenarios.length} scenarios.`);
     }
 };
