@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { scenarios } from './scenarios';
 import { type Action } from '@/lib/types';
-import { soundEngine } from '@/lib/sound'; // Assuming sound logic is here or handled in UI
+import { soundEngine } from '@/lib/sound';
+import { useLives } from '@/hooks/useLives';
 
 export type GameState = 'playing' | 'success' | 'error' | 'levelComplete';
 
@@ -19,7 +20,7 @@ export function useGameLogic({ scenarioIds, onLevelComplete, onCorrectAnswer, on
         : scenarios;
 
     const [currentScenarioIndex, setCurrentScenarioIndex] = useState(0);
-    // Removed local 'lives' and 'streak' state here. They are now global.
+    const { loseLife, lives } = useLives();
 
     const [gameState, setGameState] = useState<GameState>('playing');
     const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
@@ -39,6 +40,10 @@ export function useGameLogic({ scenarioIds, onLevelComplete, onCorrectAnswer, on
             setFeedbackMessage(`Perfect! ${currentScenario.explanation_simple}`);
             if (onCorrectAnswer) onCorrectAnswer();
         } else {
+            loseLife();
+            if (lives <= 1) {
+                console.log("Last life lost!");
+            }
             setGameState('error');
             setFeedbackMessage(
                 `Incorrect. The correct answer was "${currentScenario.correctAction}". ${currentScenario.explanation_simple}`

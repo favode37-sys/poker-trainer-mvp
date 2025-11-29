@@ -3,8 +3,6 @@ import { useState } from 'react';
 import { Play, Zap, LayoutDashboard, User, Trophy, Flame, Map, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { PokerChip } from '@/components/ui/PokerChip';
-import { Button } from '@/components/ui/Button';
-import { PokerChip } from '@/components/ui/PokerChip';
 import { type Quest } from '@/hooks/useQuests';
 import { useLives } from '@/hooks/useLives';
 import { useStreak } from '@/hooks/useStreak';
