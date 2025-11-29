@@ -34,7 +34,13 @@ export const levels: Level[] = [
         title: 'Boss Fight: Uncle Ted',
         subtitle: 'Defeat the Calling Station',
         status: 'locked',
-        scenarioIds: ['kitchen_aks_utg', 'kitchen_22_btn', 'kitchen_kjo_utg'],
+        scenarioIds: [
+            'boss_ted_1_iso',
+            'boss_ted_2_nobluff',
+            'boss_ted_3_fold',
+            'boss_ted_4_thinvalue',
+            'boss_ted_5_fatvalue'
+        ],
         icon: '🍺',
         xpReward: 500,
         bossId: 'ted_station'

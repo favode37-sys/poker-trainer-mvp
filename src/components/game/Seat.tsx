@@ -41,6 +41,19 @@ export function Seat({ position, player, positionLabel, betAmount = 0, isDealer 
         }
     };
 
+    // ANIMATION: Fly chips to center on exit
+    const getChipExitAnimation = (pos: number) => {
+        switch (pos) {
+            case 1: return { y: -150, opacity: 0, scale: 0.5 }; // Hero (Bottom) -> Up
+            case 2: return { x: 100, y: -100, opacity: 0, scale: 0.5 }; // Bottom Left -> Up Right
+            case 3: return { x: 100, y: 100, opacity: 0, scale: 0.5 }; // Top Left -> Down Right
+            case 4: return { y: 150, opacity: 0, scale: 0.5 }; // Top -> Down
+            case 5: return { x: -100, y: 100, opacity: 0, scale: 0.5 }; // Top Right -> Down Left
+            case 6: return { x: -100, y: -100, opacity: 0, scale: 0.5 }; // Bottom Right -> Up Left
+            default: return { opacity: 0 };
+        }
+    };
+
     return (
         <div className="relative w-20 sm:w-24 rounded-2xl p-1 transition-all duration-300">
 
@@ -55,9 +68,12 @@ export function Seat({ position, player, positionLabel, betAmount = 0, isDealer 
             <AnimatePresence>
                 {betAmount > 0 && (
                     <motion.div
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
+                        initial={{ scale: 0, opacity: 0, y: 0, x: 0 }}
+                        animate={{ scale: 1, opacity: 1, y: 0, x: 0 }}
+                        exit={{
+                            ...getChipExitAnimation(position),
+                            transition: { duration: 0.4, ease: "backIn" }
+                        }}
                         className={`absolute ${getChipPosition(position)} flex flex-col items-center z-30`}
                     >
                         <div className="bg-neutral-800 px-2 py-1 rounded-full border border-neutral-700 flex items-center gap-1 shadow-lg whitespace-nowrap">

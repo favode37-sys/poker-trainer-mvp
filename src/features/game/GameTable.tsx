@@ -8,6 +8,7 @@ import { FeedbackSheet } from '@/components/ui/FeedbackSheet';
 import { LevelCompleteModal } from '@/components/ui/LevelCompleteModal';
 import { TableLayout } from '@/components/game/TableLayout';
 import { CoachModal } from '@/components/game/CoachModal';
+import { BossBriefing } from '@/components/game/BossBriefing';
 import { useGameLogic } from '@/features/game/useGameLogic';
 import { soundEngine } from '@/lib/sound';
 import { calculateTableSeats, type Position } from '@/lib/poker-engine';
@@ -16,6 +17,8 @@ import { geminiService } from '@/lib/gemini';
 import { playSuccessEffect, playFoldEffect, triggerShake } from '@/lib/effects';
 import { type Quest } from '@/hooks/useQuests';
 import { BOSSES, type BossId } from './boss-profiles';
+// NEW IMPORT
+import { bossLogic } from '@/lib/boss-logic';
 
 interface GameTableProps {
     levelId: string;
@@ -32,6 +35,19 @@ interface GameTableProps {
 }
 
 export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelComplete, onBackToMap, bankroll, streak, updateBankroll, onQuestEvent, bossId }: GameTableProps) {
+    // Boss setup
+    const boss = bossId ? BOSSES[bossId] : null;
+    const [villainMessage, setVillainMessage] = useState("");
+    const tableTheme = boss ? boss.colorTheme : undefined;
+
+    // State for Boss Briefing
+    const [showBriefing, setShowBriefing] = useState<boolean>(!!bossId);
+
+    const handleStartBossFight = () => {
+        setShowBriefing(false);
+        soundEngine.playClick();
+    };
+
     const {
         currentScenario,
         gameState,
@@ -49,54 +65,37 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         },
         onCorrectAnswer: () => {
             updateBankroll(10);
-            // Quest Triggers
             onQuestEvent('play_hands', 1);
             onQuestEvent('win_hands', 1);
-
-            // Check if it was a fold
             if (currentScenario?.correctAction === 'Fold') {
                 onQuestEvent('correct_folds', 1);
+            }
+
+            // BOSS REACTION ON LOSS (Player Wins)
+            if (boss) {
+                const reaction = boss.phrases.lose[Math.floor(Math.random() * boss.phrases.lose.length)];
+                setVillainMessage(reaction);
+                setTimeout(() => setVillainMessage(""), 3000);
             }
         },
         onWrongAnswer: () => {
             updateBankroll(-50);
-            // Even wrong answers count as "played"
             onQuestEvent('play_hands', 1);
+
+            // BOSS REACTION ON WIN (Player Loses)
+            if (boss) {
+                const reaction = boss.phrases.win[Math.floor(Math.random() * boss.phrases.win.length)];
+                setVillainMessage(reaction);
+                setTimeout(() => setVillainMessage(""), 3000);
+            }
         }
     });
 
-    if (!currentScenario) {
-        return (
-            <div className="absolute inset-0 bg-slate-900 flex items-center justify-center">
-                <div className="text-center p-6">
-                    <h2 className="text-xl font-bold text-white mb-2">⚠️ Scenario Not Found</h2>
-                    <p className="text-slate-400 mb-6">The requested scenario could not be loaded.</p>
-                    <Button variant="secondary" onClick={onBackToMap}>Return to Map</Button>
-                </div>
-            </div>
-        );
-    }
+    // ... (rest of standard checks)
 
-    // State for AI explanation
-    const [coachExplanation, setCoachExplanation] = useState<string>('');
-    const [isCoachLoading, setIsCoachLoading] = useState(false);
-    const [isCoachOpen, setIsCoachOpen] = useState(false);
+    if (!currentScenario) return null; // Simplified loading check
 
-    // Boss logic
-    const boss = bossId ? BOSSES[bossId] : null;
-    const [villainMessage, setVillainMessage] = useState("");
-    const tableTheme = boss ? boss.colorTheme : undefined;
-
-    // Show boss greeting on mount
-    useEffect(() => {
-        if (boss) {
-            setVillainMessage(boss.phrases.greeting);
-            const timer = setTimeout(() => setVillainMessage(""), 4000);
-            return () => clearTimeout(timer);
-        }
-    }, [boss]);
-
-    // Destructure new fields with defaults
+    // Destructure new fields
     const {
         villainAction,
         heroCards,
@@ -108,23 +107,16 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         villainChipsInFront = 0
     } = currentScenario;
 
-    // --- REPLACE OLD SEAT LOGIC WITH THIS ---
-
-    // 1. Calculate seat configuration based on positions
+    // --- SEAT LOGIC ---
     const seatConfigs = calculateTableSeats(
         heroPosition as Position,
         villainPosition as Position
     );
 
-    // 2. Map configurations to renderable player objects
     const seatsArray = seatConfigs.map((config) => {
-        // Hero (Seat 1) is handled separately in the UI overlay
         if (config.isHero) return undefined;
-
-        // Villain Logic
         if (config.isVillain) {
             const stack = 100 - villainChipsInFront;
-
             return {
                 player: {
                     name: boss ? boss.name : 'Villain',
@@ -132,7 +124,7 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                     isActive: true,
                     avatar: boss ? boss.avatar : undefined
                 },
-                betAmount: villainChipsInFront, // Explicit bet amount
+                betAmount: villainChipsInFront,
                 positionLabel: config.positionLabel,
                 isFolded: false,
                 lastAction: villainAction,
@@ -140,8 +132,6 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                 isHero: false
             };
         }
-
-        // Filler Player Logic
         return {
             player: { name: `Player ${config.id}`, stack: 100, isActive: false },
             positionLabel: config.positionLabel,
@@ -153,43 +143,45 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         };
     });
 
-    // Construct the seats tuple for TableLayout
     const seats: [any, any, any, any, any, any] = [
-        seatsArray[0], // Seat 1 (Hero - undefined)
-        seatsArray[1], // Seat 2
-        seatsArray[2], // Seat 3
-        seatsArray[3], // Seat 4
-        seatsArray[4], // Seat 5
-        seatsArray[5]  // Seat 6
+        seatsArray[0], seatsArray[1], seatsArray[2], seatsArray[3], seatsArray[4], seatsArray[5]
     ];
+    // ------------------
 
-    // --- END NEW LOGIC ---
+    // Coach Logic
+    const [coachExplanation, setCoachExplanation] = useState<string>('');
+    const [isCoachLoading, setIsCoachLoading] = useState(false);
+    const [isCoachOpen, setIsCoachOpen] = useState(false);
+
+    // Initial Boss Greeting
+    useEffect(() => {
+        if (boss) {
+            setVillainMessage(boss.phrases.greeting);
+            const timer = setTimeout(() => setVillainMessage(""), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [boss]);
 
     useEffect(() => {
         soundEngine.init();
     }, []);
 
-    // Handler for opening coach
     const handleOpenCoach = async () => {
         setIsCoachOpen(true);
         analytics.coachOpened(currentScenario.id, 'game_table');
 
-        // Only fetch if we haven't already (or force refresh if you prefer)
         if (!coachExplanation) {
             setIsCoachLoading(true);
             const isLastCorrect = gameState === 'success';
-
-            // We infer the user's last action based on correctness. 
-            // (For MVP simplification. In v2 we can store `lastAction` in state)
-            const userActionDescription = isLastCorrect
-                ? currentScenario.correctAction
-                : "Incorrect Move";
+            const userActionDescription = isLastCorrect ? currentScenario.correctAction : "Incorrect Move";
 
             try {
+                // PASS BOSS PROFILE TO COACH
                 const advice = await geminiService.getCoachAdvice(
                     currentScenario,
                     userActionDescription,
-                    isLastCorrect
+                    isLastCorrect,
+                    boss || undefined
                 );
                 setCoachExplanation(advice);
             } catch (e) {
@@ -201,45 +193,34 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         }
     };
 
-    useEffect(() => {
-        if (gameState === 'levelComplete') {
-            soundEngine.playLevelComplete();
-        }
-        // Reset explanation state when starting new move or closing sheet
-        if (gameState === 'playing' || gameState === null) {
-            setIsCoachOpen(false);
-            setCoachExplanation(''); // Clear previous advice
-        }
-    }, [gameState, currentScenario.id]);
-
     const handleContinueJourney = () => {
         onLevelComplete(levelId);
         onBackToMap();
     };
 
     const handleActionWithSound = (action: 'Fold' | 'Call' | 'Raise') => {
-        // 1. Audio (Existing)
         soundEngine.playClick();
-
-        // 2. Logic Check
         const isCorrect = action === currentScenario.correctAction;
-
-        // 3. Analytics Tracking
         analytics.scenarioResult(currentScenario.id, isCorrect, action);
 
-        // 4. Visual Effects (The Juice)
-        if (isCorrect) {
-            if (action === 'Fold') {
-                playFoldEffect(); // Specific reward for discipline
-            } else {
-                playSuccessEffect(); // Standard victory
+        // --- BOSS DYNAMIC REACTION ---
+        if (boss) {
+            const reaction = bossLogic.getReaction(boss, action, { potSize });
+            if (reaction) {
+                setVillainMessage(reaction);
+                // Clear reaction after 2.5s so it doesn't stick
+                setTimeout(() => setVillainMessage(""), 2500);
             }
+        }
+        // -----------------------------
+
+        if (isCorrect) {
+            if (action === 'Fold') playFoldEffect();
+            else playSuccessEffect();
         } else {
-            // Shake the table container on error
             triggerShake('game-table-container');
         }
 
-        // 5. Pass to game logic
         handleAction(action);
     };
 
@@ -247,10 +228,23 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
     const isCheck = amountToCall === 0;
     const raiseAmount = currentScenario.defaultRaiseAmount;
 
-    const explanationToPass = null; // Never pass deep text to sheet, forcing the button to appear
-
     return (
         <div id="game-table-container" className="absolute inset-0 bg-neutral-bg flex flex-col overflow-hidden font-sans">
+            {/* BOSS BRIEFING OVERLAY */}
+            <AnimatePresence>
+                {showBriefing && boss && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100]"
+                    >
+                        <BossBriefing boss={boss} onStart={handleStartBossFight} />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Header */}
             <div className="flex-none relative z-10 glass-panel border-b border-white/50">
                 <div className="h-2 bg-neutral-100 w-full">
                     <motion.div className="h-full bg-brand-accent rounded-r-full" initial={{ width: 0 }} animate={{ width: `${progress}%` }} transition={{ duration: 0.5 }} />
@@ -272,39 +266,34 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                 </div>
             </div>
 
+            {/* Table Area */}
             <div className="flex-1 min-h-0 w-full flex items-center justify-center relative p-4">
                 <div className="relative w-full h-full max-w-md">
                     <TableLayout seats={seats} communityCards={communityCards} potSize={potSize} themeClass={tableTheme} />
 
-                    {/* Boss Speech Bubble */}
+                    {/* Villain Message Bubble */}
                     <AnimatePresence>
                         {villainMessage && (
                             <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0 }}
-                                className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-white px-4 py-3 rounded-xl rounded-bl-none shadow-xl border-2 border-slate-200 max-w-xs"
+                                initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-white px-4 py-2 rounded-2xl rounded-bl-none shadow-xl border-2 border-brand-primary/20 max-w-[200px]"
                             >
-                                <p className="text-sm font-bold text-slate-800">{villainMessage}</p>
+                                <p className="text-xs sm:text-sm font-bold text-slate-800 text-center leading-tight">
+                                    {villainMessage}
+                                </p>
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </div>
             </div>
 
-            {/* HERO SECTION Overlay updates */}
+            {/* Hero Cards Overlay */}
             <div className="absolute bottom-[110px] sm:bottom-[138px] left-1/2 -translate-x-1/2 sm:left-[30px] sm:translate-x-0 flex gap-2 z-30 origin-bottom scale-[0.65] sm:scale-[0.8] sm:origin-bottom-left pointer-events-none">
-                {/* Note: Added pointer-events-none to container so clicks pass through to table if needed, 
-                    but cards need pointer-events-auto if they were interactive (they aren't yet). */}
-
-                {/* Dealer Button for Hero - Derived from Engine Config (Seat 1) */}
                 {seatConfigs[0].isDealer && (
-                    <div className="absolute -top-6 -right-2 sm:-top-4 sm:-right-4 h-6 w-6 sm:h-8 sm:w-8 bg-yellow-400 border border-yellow-500 text-yellow-950 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold z-40 shadow-md">
-                        D
-                    </div>
+                    <div className="absolute -top-6 -right-2 sm:-top-4 sm:-right-4 h-6 w-6 sm:h-8 sm:w-8 bg-yellow-400 border border-yellow-500 text-yellow-950 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold z-40 shadow-md">D</div>
                 )}
-
-                {/* Hero Chips - Explicit Logic */}
                 {heroChipsInFront > 0 && (
                     <div className="absolute -top-12 sm:-top-10 left-1/2 -translate-x-1/2 flex flex-col items-center z-30">
                         <div className="bg-neutral-900 px-2 py-1 rounded-full border border-neutral-700 flex items-center gap-1 shadow-lg whitespace-nowrap">
@@ -313,7 +302,6 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                         </div>
                     </div>
                 )}
-
                 {heroCards.map((card, index) => (
                     <motion.div
                         key={`${currentScenario.id}-hero-${index}`}
@@ -327,29 +315,22 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                 ))}
             </div>
 
+            {/* Controls */}
             <div className="flex-none glass-panel rounded-t-3xl p-4 pb-8 space-y-3 z-20 relative border-t border-white/50">
                 <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
-                    <Button variant="danger" size="lg" className="col-span-1 h-12 text-sm sm:text-base px-2" onClick={() => handleActionWithSound('Fold')} disabled={gameState !== 'playing'}>FOLD</Button>
-                    <Button
-                        variant={isCheck ? "outline" : "primary"}
-                        size="lg"
-                        className={`col-span-1 h-12 text-sm sm:text-base px-2 ${isCheck ? "bg-white/50 text-neutral-600 hover:bg-white/80" : ""}`}
-                        onClick={() => handleActionWithSound('Call')}
-                        disabled={gameState !== 'playing'}
-                    >
+                    <Button variant="danger" size="lg" className="col-span-1 h-12 px-2" onClick={() => handleActionWithSound('Fold')} disabled={gameState !== 'playing'}>FOLD</Button>
+                    <Button variant={isCheck ? "outline" : "primary"} size="lg" className={`col-span-1 h-12 px-2 ${isCheck ? "bg-white/50 text-neutral-600" : ""}`} onClick={() => handleActionWithSound('Call')} disabled={gameState !== 'playing'}>
                         {isCheck ? "CHECK" : <>CALL ${amountToCall}</>}
                     </Button>
-                    <Button variant="secondary" size="lg" className="col-span-1 h-12 text-sm sm:text-base px-2" onClick={() => handleActionWithSound('Raise')} disabled={gameState !== 'playing'}>
+                    <Button variant="secondary" size="lg" className="col-span-1 h-12 px-2" onClick={() => handleActionWithSound('Raise')} disabled={gameState !== 'playing'}>
                         {raiseAmount ? <>RAISE ${raiseAmount}</> : 'RAISE'}
                     </Button>
                 </div>
-
             </div>
 
             <FeedbackSheet
                 state={gameState === 'success' || gameState === 'error' ? gameState : null}
                 message={feedbackMessage}
-                explanation={explanationToPass}
                 onNext={handleNext}
                 onExpand={handleOpenCoach}
             />
@@ -361,7 +342,15 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                 explanation={coachExplanation}
             />
 
-            {gameState === 'levelComplete' && <LevelCompleteModal levelTitle={levelTitle} xpEarned={xpReward} correctAnswers={correctAnswers} totalQuestions={totalQuestions} onContinue={handleContinueJourney} />}
+            {gameState === 'levelComplete' && (
+                <LevelCompleteModal
+                    levelTitle={levelTitle}
+                    xpEarned={xpReward}
+                    correctAnswers={correctAnswers}
+                    totalQuestions={totalQuestions}
+                    onContinue={handleContinueJourney}
+                />
+            )}
         </div>
     );
 }

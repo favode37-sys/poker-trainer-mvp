@@ -1,12 +1,18 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Scenario } from "./types";
 import { POKER_ENGINE_SYS_PROMPT } from "./poker-prompt";
+import type { BossProfile } from "@/features/game/boss-profiles";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 export const geminiService = {
-    async getCoachAdvice(scenario: Scenario, userAction: string, isCorrect: boolean): Promise<string> {
+    async getCoachAdvice(
+        scenario: Scenario,
+        userAction: string,
+        isCorrect: boolean,
+        bossProfile?: BossProfile
+    ): Promise<string> {
         if (!API_KEY) {
             return "⚠️ AI Brain Missing: Please add VITE_GEMINI_API_KEY to .env to unlock my full potential!";
         }
@@ -19,11 +25,25 @@ export const geminiService = {
 
         const heroHand = scenario.heroCards.map(c => `${c.rank}${c.suit.charAt(0)}`).join(' ');
 
-        // SYSTEM PROMPT BASED ON STRATEGY DOCS (BlackRain79 / Exploitative)
+        // Boss Context for Prompt
+        const bossContext = bossProfile
+            ? `
+            OPPONENT (BOSS): ${bossProfile.name} "${bossProfile.title}"
+            ARCHETYPE: ${bossProfile.style} (Passive/Aggressive/Etc)
+            KEY TRAIT: The player MUST adjust to this specific opponent. 
+            For example:
+            - If "Calling Station" (Uncle Ted): Never bluff, value bet thin.
+            - If "Maniac": Call lighter, trap more.
+            - If "Nit": Steal blinds, respect aggression.
+            `
+            : "OPPONENT: Unknown/Generic Player (Standard Population reads).";
+
         const prompt = `
         ROLE: You are an expert Poker Coach for MICRO-STAKES players.
         PHILOSOPHY: Exploitative Strategy (MDA). We DO NOT play GTO. We exploit leaks.
         
+        ${bossContext}
+
         CORE RULES:
         1. "Tight is Right": Play strong hands fast. Fold trash.
         2. "No Bluffing Calling Stations": If they don't fold, we don't bluff.
@@ -32,7 +52,7 @@ export const geminiService = {
 
         SCENARIO CONTEXT:
         - Hero Hand: ${heroHand} (${scenario.heroPosition})
-        - Villain: ${scenario.villainPosition} (Action: ${scenario.villainAction})
+        - Villain Position: ${scenario.villainPosition}
         - Board: ${board}
         - Pot: ${scenario.potSize} BB
         - Correct Move: ${scenario.correctAction}
@@ -40,9 +60,8 @@ export const geminiService = {
         PLAYER ACTION: ${userAction} (${isCorrect ? 'CORRECT' : 'MISTAKE'})
 
         TASK:
-        Explain WHY the correct move is best using simple language and metaphors (e.g. "don't pay off the nit", "value town").
-        If the player made a mistake, explain the specific leak.
-        Validating the "Hero Fold": If the player Folded correctly, praise their discipline highly!
+        Explain WHY the correct move is best.
+        ${bossProfile ? `CRITICAL: Mention ${bossProfile.name} by name and explain why the move works against HIM specifically.` : ''}
         
         TONE: Encouraging, witty, concise (max 3 sentences). Use emojis.
         `;

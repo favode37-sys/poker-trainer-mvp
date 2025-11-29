@@ -8,11 +8,14 @@ import { ScenarioBuilder } from '@/features/admin/ScenarioBuilder';
 import { StatsDashboard } from '@/features/stats/StatsDashboard';
 import { PreflopTrainer } from '@/features/tools/PreflopTrainer';
 import { ChartEditor } from '@/features/admin/ChartEditor';
+import { MainMenu } from '@/features/menu/MainMenu';
 import { levels } from '@/features/map/levels';
 import { usePlayerState } from '@/hooks/usePlayerState';
 import { useQuests, type Quest } from '@/hooks/useQuests';
 import { useAchievements } from '@/hooks/useAchievements';
 import { SplashScreen } from '@/components/ui/SplashScreen';
+import { ProfileModal } from '@/components/ui/ProfileModal';
+import { SettingsModal } from '@/components/ui/SettingsModal';
 import { AnimatePresence, motion } from 'framer-motion';
 
 export default function App() {
@@ -28,9 +31,11 @@ export default function App() {
   const { quests, updateQuestProgress, resetQuests } = useQuests();
   const { resetAchievements } = useAchievements();
 
-  const [currentScreen, setCurrentScreen] = useState<'map' | 'game' | 'blitz' | 'analyzer' | 'admin' | 'builder' | 'stats' | 'preflop' | 'chart'>('map');
+  const [currentScreen, setCurrentScreen] = useState<'menu' | 'map' | 'game' | 'blitz' | 'analyzer' | 'admin' | 'builder' | 'stats' | 'preflop' | 'chart'>('menu');
   const [selectedLevelId, setSelectedLevelId] = useState<string | null>(null);
   const [isAppStarted, setIsAppStarted] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const handleLevelSelect = (levelId: string) => {
     setSelectedLevelId(levelId);
@@ -41,9 +46,17 @@ export default function App() {
     completeLevel(levelId);
   };
 
-  const handleBackToMap = () => {
-    setCurrentScreen('map');
+  const handleBackToMenu = () => {
+    setCurrentScreen('menu');
     setSelectedLevelId(null);
+  };
+
+  const handleMenuNavigate = (screen: any) => {
+    if (screen === 'settings') {
+      setIsSettingsOpen(true);
+    } else {
+      setCurrentScreen(screen);
+    }
   };
 
   const handleQuestEvent = (type: Quest['type'], value: number = 1) => {
@@ -76,10 +89,29 @@ export default function App() {
   return (
     <div className="w-full h-full overflow-hidden bg-slate-900">
       <AnimatePresence mode="wait">
+        {currentScreen === 'menu' && (
+          <motion.div
+            key="menu"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full"
+          >
+            <MainMenu
+              bankroll={bankroll}
+              streak={streak}
+              quests={quests}
+              onNavigate={handleMenuNavigate}
+              onProfileClick={() => setIsProfileOpen(true)}
+            />
+          </motion.div>
+        )}
+
         {currentScreen === 'map' && (
           <motion.div
             key="map"
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3 }}
@@ -88,15 +120,10 @@ export default function App() {
             <CareerMap
               levels={mapLevels}
               onLevelSelect={handleLevelSelect}
+              onBack={handleBackToMenu}
               onResetProgress={handleFullReset}
-              onBlitzClick={() => setCurrentScreen('blitz')}
-              onAnalyzerClick={() => setCurrentScreen('analyzer')}
-              onAdminClick={() => setCurrentScreen('admin')}
-              onStatsClick={() => setCurrentScreen('stats')}
-              onPreflopClick={() => setCurrentScreen('preflop')}
               bankroll={bankroll}
               streak={streak}
-              quests={quests}
             />
           </motion.div>
         )}
@@ -116,7 +143,7 @@ export default function App() {
               scenarioIds={selectedLevel.scenarioIds}
               xpReward={selectedLevel.xpReward}
               onLevelComplete={handleLevelComplete}
-              onBackToMap={handleBackToMap}
+              onBackToMap={handleBackToMenu}
               bankroll={bankroll}
               streak={streak}
               updateBankroll={updateBankroll}
@@ -136,7 +163,7 @@ export default function App() {
             className="w-full h-full"
           >
             <BlitzMode
-              onBack={handleBackToMap}
+              onBack={handleBackToMenu}
               onQuestEvent={handleQuestEvent}
             />
           </motion.div>
@@ -151,7 +178,7 @@ export default function App() {
             transition={{ duration: 0.3 }}
             className="w-full h-full overflow-y-auto"
           >
-            <HandAnalyzer onBack={handleBackToMap} />
+            <HandAnalyzer onBack={handleBackToMenu} />
           </motion.div>
         )}
 
@@ -165,7 +192,7 @@ export default function App() {
             className="w-full h-full overflow-y-auto"
           >
             <AdminDashboard
-              onBack={handleBackToMap}
+              onBack={handleBackToMenu}
               onBuilderClick={() => setCurrentScreen('builder')}
               onChartClick={() => setCurrentScreen('chart')}
             />
@@ -194,7 +221,7 @@ export default function App() {
             transition={{ duration: 0.3 }}
             className="w-full h-full overflow-y-auto"
           >
-            <StatsDashboard onBack={handleBackToMap} />
+            <StatsDashboard onBack={handleBackToMenu} />
           </motion.div>
         )}
 
@@ -207,7 +234,7 @@ export default function App() {
             transition={{ duration: 0.3 }}
             className="w-full h-full"
           >
-            <PreflopTrainer onBack={handleBackToMap} />
+            <PreflopTrainer onBack={handleBackToMenu} />
           </motion.div>
         )}
 
@@ -224,6 +251,24 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        onOpenStats={() => {
+          setIsProfileOpen(false);
+          setCurrentScreen('stats');
+        }}
+      />
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onReset={() => {
+          handleFullReset();
+          setIsSettingsOpen(false);
+        }}
+      />
     </div>
   );
 }
