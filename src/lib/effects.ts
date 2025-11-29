@@ -32,17 +32,22 @@ export const triggerShake = (elementId: string) => {
     }
 };
 
-export const triggerHaptic = (type: 'light' | 'medium' | 'heavy' | 'success' | 'error' | 'rise') => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+export type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'error';
+
+export const triggerHaptic = (type: HapticType) => {
+    // Check if API is available
+    if (typeof navigator === 'undefined' || !navigator.vibrate) return;
+
+    try {
         switch (type) {
             case 'light':
-                navigator.vibrate(10); // Click (Soft tick)
+                navigator.vibrate(10); // Soft tick (UI clicks)
                 break;
             case 'medium':
-                navigator.vibrate(25); // Regular action (Call)
+                navigator.vibrate(25); // Standard action (Call/Check)
                 break;
             case 'heavy':
-                navigator.vibrate(50); // Heavy action (Raise, All-in)
+                navigator.vibrate(50); // impactful action (Raise)
                 break;
             case 'success':
                 navigator.vibrate([10, 30, 10, 30]); // Double tap (Win/Correct)
@@ -50,10 +55,8 @@ export const triggerHaptic = (type: 'light' | 'medium' | 'heavy' | 'success' | '
             case 'error':
                 navigator.vibrate([50, 50, 50]); // Heavy buzz (Lose/Wrong)
                 break;
-            case 'rise':
-                // Rising sensation (Streak/Level Up)
-                navigator.vibrate([10, 20, 10, 20, 30, 40]);
-                break;
         }
+    } catch (e) {
+        // Ignore haptic errors on unsupported devices
     }
 };

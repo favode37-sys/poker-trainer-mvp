@@ -44,12 +44,12 @@ export function Seat({ position, player, positionLabel, betAmount = 0, isDealer 
     // ANIMATION: Fly chips to center on exit
     const getChipExitAnimation = (pos: number) => {
         switch (pos) {
-            case 1: return { y: -150, opacity: 0, scale: 0.5 }; // Hero (Bottom) -> Up
-            case 2: return { x: 100, y: -100, opacity: 0, scale: 0.5 }; // Bottom Left -> Up Right
-            case 3: return { x: 100, y: 100, opacity: 0, scale: 0.5 }; // Top Left -> Down Right
-            case 4: return { y: 150, opacity: 0, scale: 0.5 }; // Top -> Down
-            case 5: return { x: -100, y: 100, opacity: 0, scale: 0.5 }; // Top Right -> Down Left
-            case 6: return { x: -100, y: -100, opacity: 0, scale: 0.5 }; // Bottom Right -> Up Left
+            case 1: return { y: -150, opacity: 0, scale: 0.4 }; // Hero (Bottom) -> Up
+            case 2: return { x: 100, y: -100, opacity: 0, scale: 0.4 }; // Bottom Left -> Up Right
+            case 3: return { x: 100, y: 100, opacity: 0, scale: 0.4 }; // Top Left -> Down Right
+            case 4: return { y: 150, opacity: 0, scale: 0.4 }; // Top -> Down
+            case 5: return { x: -100, y: 100, opacity: 0, scale: 0.4 }; // Top Right -> Down Left
+            case 6: return { x: -100, y: -100, opacity: 0, scale: 0.4 }; // Bottom Right -> Up Left
             default: return { opacity: 0 };
         }
     };

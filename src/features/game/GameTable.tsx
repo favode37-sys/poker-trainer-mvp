@@ -14,7 +14,7 @@ import { soundEngine } from '@/lib/sound';
 import { calculateTableSeats, type Position } from '@/lib/poker-engine';
 import { analytics } from '@/lib/analytics';
 import { geminiService } from '@/lib/gemini';
-import { playSuccessEffect, playFoldEffect, triggerShake } from '@/lib/effects';
+import { playSuccessEffect, playFoldEffect, triggerShake, triggerHaptic } from '@/lib/effects';
 import { type Quest } from '@/hooks/useQuests';
 import { BOSSES, type BossId } from './boss-profiles';
 // NEW IMPORT
@@ -199,6 +199,11 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
     };
 
     const handleActionWithSound = (action: 'Fold' | 'Call' | 'Raise') => {
+        // Haptic feedback based on action weight
+        if (action === 'Fold') triggerHaptic('light');
+        if (action === 'Call') triggerHaptic('medium');
+        if (action === 'Raise') triggerHaptic('heavy');
+
         soundEngine.playClick();
         const isCorrect = action === currentScenario.correctAction;
         analytics.scenarioResult(currentScenario.id, isCorrect, action);
@@ -215,9 +220,11 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         // -----------------------------
 
         if (isCorrect) {
+            triggerHaptic('success');
             if (action === 'Fold') playFoldEffect();
             else playSuccessEffect();
         } else {
+            triggerHaptic('error');
             triggerShake('game-table-container');
         }
 

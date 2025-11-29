@@ -3,7 +3,12 @@ import { useState } from 'react';
 import { Play, Zap, LayoutDashboard, User, Trophy, Flame, Map, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { PokerChip } from '@/components/ui/PokerChip';
+import { Button } from '@/components/ui/Button';
+import { PokerChip } from '@/components/ui/PokerChip';
 import { type Quest } from '@/hooks/useQuests';
+import { useLives } from '@/hooks/useLives';
+import { useStreak } from '@/hooks/useStreak';
+import { LivesIndicator } from '@/components/ui/LivesIndicator';
 
 interface MainMenuProps {
     bankroll: number;
@@ -13,9 +18,11 @@ interface MainMenuProps {
     onProfileClick: () => void;
 }
 
-export function MainMenu({ bankroll, streak, quests, onNavigate, onProfileClick }: MainMenuProps) {
+export function MainMenu({ bankroll, streak: propStreak, quests, onNavigate, onProfileClick }: MainMenuProps) {
     const activeQuests = quests.filter(q => !q.isCompleted).length;
     const [secretClicks, setSecretClicks] = useState(0);
+    const { lives, maxLives, timeToNextLife } = useLives();
+    const { streak } = useStreak();
 
     const handleSecretClick = () => {
         setSecretClicks(prev => prev + 1);
@@ -41,6 +48,8 @@ export function MainMenu({ bankroll, streak, quests, onNavigate, onProfileClick 
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <LivesIndicator lives={lives} maxLives={maxLives} timer={timeToNextLife} />
+
                     <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
                         <PokerChip size="sm" color="blue" />
                         <span className="font-black text-slate-700 text-sm">{bankroll}</span>
