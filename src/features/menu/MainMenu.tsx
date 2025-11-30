@@ -1,25 +1,21 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
-import { Play, Zap, LayoutDashboard, User, Trophy, Flame, Map, Settings } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Play, Zap, LayoutDashboard, Trophy, Flame, Map, Search, Check } from 'lucide-react';
 import { PokerChip } from '@/components/ui/PokerChip';
 import { type Quest } from '@/hooks/useQuests';
-import { useLives } from '@/hooks/useLives';
 import { useStreak } from '@/hooks/useStreak';
-import { LivesIndicator } from '@/components/ui/LivesIndicator';
+
 
 interface MainMenuProps {
     bankroll: number;
     streak: number;
     quests: Quest[];
-    onNavigate: (screen: 'map' | 'blitz' | 'analyzer' | 'preflop' | 'stats' | 'admin' | 'settings') => void;
-    onProfileClick: () => void;
+    onNavigate: (screen: 'map' | 'blitz' | 'analyzer' | 'preflop' | 'stats' | 'admin' | 'settings' | 'menu' | 'profile') => void;
 }
 
-export function MainMenu({ bankroll, streak: propStreak, quests, onNavigate, onProfileClick }: MainMenuProps) {
+export function MainMenu({ bankroll, quests, onNavigate }: MainMenuProps) {
     const activeQuests = quests.filter(q => !q.isCompleted).length;
     const [secretClicks, setSecretClicks] = useState(0);
-    const { lives, maxLives, timeToNextLife } = useLives();
     const { streak } = useStreak();
 
     const handleSecretClick = () => {
@@ -32,151 +28,115 @@ export function MainMenu({ bankroll, streak: propStreak, quests, onNavigate, onP
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 font-sans pb-20 overflow-y-auto">
-            {/* 1. Top Bar */}
-            <div className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200 px-6 py-4 flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                    <div className="bg-slate-100 p-2 rounded-full border border-slate-200 cursor-pointer" onClick={onProfileClick}>
-                        <User className="w-6 h-6 text-slate-600" />
-                    </div>
-                    <div className="flex flex-col" onClick={handleSecretClick}>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Player</span>
-                        <span className="font-black text-slate-800 leading-none select-none cursor-pointer active:scale-95 transition-transform">Hero</span>
-                    </div>
-                </div>
+        <div className="h-[100dvh] w-full bg-[#f0f4f8] font-sans overflow-hidden flex flex-col relative">
 
-                <div className="flex items-center gap-2">
-                    <LivesIndicator lives={lives} maxLives={maxLives} timer={timeToNextLife} />
-
-                    <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
-                        <PokerChip size="sm" color="blue" />
-                        <span className="font-black text-slate-700 text-sm">{bankroll}</span>
+            {/* 1. TOP STATS BAR (Centered) */}
+            <div className="flex-none pt-4 pb-2 px-6 flex justify-center items-center z-20">
+                <div className="flex items-center gap-3 bg-white/50 backdrop-blur-sm p-1.5 rounded-full border border-white shadow-sm">
+                    <div className="clay-pill-blue px-3 py-1 text-xs gap-1.5 shadow-none border-none bg-blue-100/50 text-blue-800">
+                        <PokerChip size="sm" color="blue" className="w-4 h-4 border-none shadow-none" />
+                        <span className="font-black text-sm">${bankroll}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100">
+                    <div className="w-px h-4 bg-slate-300" />
+                    <div className="clay-pill-orange px-3 py-1 text-xs gap-1.5 shadow-none border-none bg-orange-100/50 text-orange-800">
                         <Flame className="w-4 h-4 text-orange-500 fill-current" />
-                        <span className="font-black text-orange-600 text-sm">{streak}</span>
+                        <span className="font-black text-sm">{streak}</span>
                     </div>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onNavigate('settings');
-                        }}
-                        className="bg-slate-100 p-2 rounded-full border border-slate-200 hover:bg-slate-200 transition-colors cursor-pointer relative z-50"
-                    >
-                        <Settings className="w-5 h-5 text-slate-600" />
-                    </button>
                 </div>
             </div>
 
-            <div className="p-6 space-y-8">
+            {/* MAIN CONTENT AREA */}
+            <div className="flex-1 flex flex-col p-4 gap-3 min-h-0 pb-24"> {/* Added padding-bottom for dock */}
 
-                {/* 2. Hero Section: Campaign */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => onNavigate('map')}
-                    className="relative overflow-hidden bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-6 shadow-xl shadow-indigo-500/30 cursor-pointer group"
-                >
-                    <div className="relative z-10 text-white">
-                        <div className="flex items-center gap-2 mb-2 opacity-80">
-                            <Map className="w-4 h-4" />
-                            <span className="text-xs font-bold uppercase tracking-widest">Story Mode</span>
-                        </div>
-                        <h2 className="text-3xl font-black mb-4 tracking-tight">Continue<br />Journey</h2>
-                        <Button variant="secondary" className="px-6 shadow-lg border-none">
-                            <Play className="w-5 h-5 mr-2 fill-current" /> PLAY
-                        </Button>
-                    </div>
-
-                    {/* Decor */}
-                    <div className="absolute right-[-20px] bottom-[-20px] opacity-20 group-hover:scale-110 transition-transform duration-500">
-                        <Trophy className="w-48 h-48 text-white" />
-                    </div>
-                </motion.div>
-
-                {/* 3. Quick Actions Grid */}
-                <div className="grid grid-cols-2 gap-4">
-                    {/* Blitz */}
-                    <motion.button
-                        initial={{ opacity: 0, scale: 0.9 }}
+                {/* HERO CARD */}
+                <div className="flex-[1.2] min-h-0">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.1 }}
-                        onClick={() => onNavigate('blitz')}
-                        className="bg-white p-4 rounded-2xl border-2 border-slate-100 shadow-sm hover:border-yellow-400 hover:shadow-md transition-all text-left group"
+                        onClick={() => onNavigate('map')}
+                        className="card-clay-story group w-full h-full flex flex-col justify-between p-5"
                     >
-                        <div className="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                            <Zap className="w-6 h-6 text-yellow-600 fill-current" />
-                        </div>
-                        <div className="font-black text-slate-800 text-lg">Blitz</div>
-                        <div className="text-xs text-slate-400 font-medium">Fast paced drill</div>
-                    </motion.button>
-
-                    {/* Stats */}
-                    <motion.button
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.2 }}
-                        onClick={() => onNavigate('stats')}
-                        className="bg-white p-4 rounded-2xl border-2 border-slate-100 shadow-sm hover:border-emerald-400 hover:shadow-md transition-all text-left group"
-                    >
-                        <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                            <LayoutDashboard className="w-6 h-6 text-emerald-600" />
-                        </div>
-                        <div className="font-black text-slate-800 text-lg">Stats</div>
-                        <div className="text-xs text-slate-400 font-medium">Check progress</div>
-                    </motion.button>
-                </div>
-
-                {/* 4. Training Tools */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider ml-1">Training Center</h3>
-
-                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
-                        <button onClick={() => onNavigate('preflop')} className="w-full flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors text-left">
-                            <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-2xl">⚡</div>
-                            <div className="flex-1">
-                                <div className="font-bold text-slate-700">Preflop Trainer</div>
-                                <div className="text-xs text-slate-400">Master opening ranges</div>
+                        <div className="flex justify-between items-start">
+                            <div className="bg-green-700/30 backdrop-blur-md px-2 py-1 rounded-full border border-white/20 flex items-center gap-1">
+                                <Map className="w-3 h-3 text-green-100" />
+                                <span className="text-[9px] font-black uppercase tracking-widest text-green-50">Campaign</span>
                             </div>
-                            <div className="bg-slate-100 px-2 py-1 rounded text-xs font-bold text-slate-500">OPEN</div>
-                        </button>
-
-                        <button onClick={() => onNavigate('analyzer')} className="w-full flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors text-left">
-                            <div className="w-10 h-10 bg-purple-50 rounded-full flex items-center justify-center text-2xl">🕵️‍♂️</div>
-                            <div className="flex-1">
-                                <div className="font-bold text-slate-700">Hand Detective</div>
-                                <div className="text-xs text-slate-400">AI Analysis tool</div>
+                            <div className="bg-white/20 p-2 rounded-full border-2 border-white/30 shadow-inner">
+                                <Play className="w-6 h-6 text-white fill-current" />
                             </div>
-                            <div className="bg-slate-100 px-2 py-1 rounded text-xs font-bold text-slate-500">OPEN</div>
-                        </button>
-                    </div>
+                        </div>
+                        <div className="relative z-10">
+                            <h2 className="text-3xl font-black leading-none mb-1 tracking-tight text-white drop-shadow-sm">
+                                Continue<br />Journey
+                            </h2>
+                            <div className="flex items-center gap-2 text-green-100 font-bold text-xs mt-2">
+                                <div className="h-1.5 w-1.5 rounded-full bg-green-200 animate-pulse" />
+                                <span>Next Boss: Uncle Ted</span>
+                            </div>
+                        </div>
+                        <svg className="absolute bottom-0 right-0 h-32 w-32 opacity-10 pointer-events-none" viewBox="0 0 100 100">
+                            <circle cx="100" cy="100" r="80" fill="white" />
+                        </svg>
+                    </motion.div>
                 </div>
 
-                {/* 5. Daily Quests Widget (Compact) */}
-                <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl p-5 text-white shadow-lg">
-                    <div className="flex justify-between items-center mb-3">
-                        <div className="flex items-center gap-2">
-                            <Trophy className="w-5 h-5 text-yellow-400" />
-                            <span className="font-bold">Daily Goals</span>
-                        </div>
-                        <span className="text-xs font-bold bg-white/20 px-2 py-1 rounded">{activeQuests} active</span>
-                    </div>
-                    {quests.slice(0, 3).map(q => (
-                        <div key={q.id} className="flex items-center gap-3 py-2 border-b border-white/10 last:border-0">
-                            <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${q.isCompleted ? 'bg-green-500 border-green-500' : 'border-slate-500'}`} />
-                            <span className={`text-sm ${q.isCompleted ? 'text-slate-400 line-through' : 'text-slate-200'}`}>{q.title}</span>
-                        </div>
-                    ))}
-                </div>
+                {/* TOOLS GRID */}
+                <div className="flex-[1.5] grid grid-cols-2 grid-rows-2 gap-3 min-h-0">
+                    <button onClick={() => onNavigate('blitz')} className="btn-clay-blitz flex flex-col justify-center items-center gap-1 p-2 h-full">
+                        <Zap className="w-8 h-8 text-yellow-900 fill-current mb-1" />
+                        <div className="font-black text-lg text-yellow-950 leading-none">Blitz</div>
+                        <div className="text-[9px] font-bold text-yellow-800/60 uppercase">Quick Play</div>
+                    </button>
 
-                {/* Admin Link */}
-                <div className="text-center pt-4">
-                    <button onClick={() => onNavigate('admin')} className="text-xs font-bold text-slate-300 hover:text-slate-500 transition-colors">
-                        SECRET ADMIN DASHBOARD
+                    <button onClick={() => onNavigate('stats')} className="btn-clay-stats flex flex-col justify-center items-center gap-1 p-2 h-full">
+                        <LayoutDashboard className="w-8 h-8 text-white fill-white/20 mb-1" />
+                        <div className="font-black text-lg text-white leading-none">Stats</div>
+                        <div className="text-[9px] font-bold text-purple-200 uppercase">Profile</div>
+                    </button>
+
+                    <button onClick={() => onNavigate('preflop')} className="btn-clay-blue flex flex-col justify-center items-center gap-1 p-2 h-full">
+                        <span className="text-3xl mb-1">⚡</span>
+                        <div className="font-black text-base text-white leading-none">Preflop</div>
+                        <div className="text-[9px] font-bold text-blue-200 uppercase">Trainer</div>
+                    </button>
+
+                    <button onClick={() => onNavigate('analyzer')} className="btn-clay-pink flex flex-col justify-center items-center gap-1 p-2 h-full">
+                        <Search className="w-7 h-7 text-white mb-1" strokeWidth={3} />
+                        <div className="font-black text-base text-white leading-none">Solver</div>
+                        <div className="text-[9px] font-bold text-pink-200 uppercase">Analyzer</div>
                     </button>
                 </div>
+
+                {/* DAILY GOALS */}
+                <div className="flex-[0.8] bg-slate-800 rounded-[1.5rem] p-3 shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),0_4px_0_#1e293b] border-2 border-slate-700 relative overflow-hidden min-h-0 flex flex-col">
+                    <div className="flex justify-between items-center mb-2 flex-none" onClick={handleSecretClick}>
+                        <div className="flex items-center gap-1.5">
+                            <Trophy className="w-3 h-3 text-yellow-400" />
+                            <span className="font-black text-white text-xs tracking-wide">Daily Goals</span>
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-400 bg-slate-900/50 px-2 py-0.5 rounded-full">
+                            {activeQuests} left
+                        </span>
+                    </div>
+                    <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 scrollbar-hide">
+                        {quests.map(q => (
+                            <div key={q.id} className={q.isCompleted ? "flex items-center justify-between p-2 rounded-lg bg-green-900/30 border border-green-800/50 opacity-60" : "flex items-center justify-between p-2 rounded-lg bg-white shadow-[0_2px_0_#cbd5e1] border border-white"}>
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                    <div className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center border ${q.isCompleted ? 'bg-green-500 border-green-500' : 'bg-slate-100 border-slate-300'}`}>
+                                        {q.isCompleted && <Check className="w-2.5 h-2.5 text-white" strokeWidth={4} />}
+                                    </div>
+                                    <span className={`text-[10px] font-bold truncate ${q.isCompleted ? 'text-green-200 line-through' : 'text-slate-700'}`}>{q.title}</span>
+                                </div>
+                                {!q.isCompleted && <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded ml-2 whitespace-nowrap">{q.progress}/{q.target}</span>}
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
+
+
+
+
         </div>
     );
 }

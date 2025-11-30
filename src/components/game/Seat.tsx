@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Coins } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { BettingStack } from './BettingStack';
 
 interface Player {
     name: string;
@@ -19,109 +20,78 @@ interface SeatProps {
     lastAction?: string;
 }
 
-
-
-const SEAT_ANIMALS = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊'];
-
 export function Seat({ position, player, positionLabel, betAmount = 0, isDealer = false, isHero = false, isFolded = false, lastAction }: SeatProps) {
-    if (!player) return null;
-
-    const animal = SEAT_ANIMALS[(position - 1) % SEAT_ANIMALS.length];
-
-    // RESPONSIVE CHIP POSITIONING
-    const getChipPosition = (pos: number) => {
-        switch (pos) {
-            case 1: return "-top-8 sm:-top-10 left-1/2 -translate-x-1/2";
-            case 2: return "-top-2 -right-8 sm:-top-4 sm:-right-12";
-            case 3: return "-bottom-2 -right-8 sm:-bottom-4 sm:-right-12";
-            case 4: return "-bottom-8 sm:-bottom-10 left-1/2 -translate-x-1/2";
-            case 5: return "-bottom-2 -left-8 sm:-bottom-4 sm:-left-12";
-            case 6: return "-top-2 -left-8 sm:-top-4 sm:-left-12";
-            default: return "-top-10";
-        }
-    };
-
-    // ANIMATION: Fly chips to center on exit
-    const getChipExitAnimation = (pos: number) => {
-        switch (pos) {
-            case 1: return { y: -150, opacity: 0, scale: 0.4 }; // Hero (Bottom) -> Up
-            case 2: return { x: 100, y: -100, opacity: 0, scale: 0.4 }; // Bottom Left -> Up Right
-            case 3: return { x: 100, y: 100, opacity: 0, scale: 0.4 }; // Top Left -> Down Right
-            case 4: return { y: 150, opacity: 0, scale: 0.4 }; // Top -> Down
-            case 5: return { x: -100, y: 100, opacity: 0, scale: 0.4 }; // Top Right -> Down Left
-            case 6: return { x: -100, y: -100, opacity: 0, scale: 0.4 }; // Bottom Right -> Up Left
-            default: return { opacity: 0 };
-        }
-    };
+    if (!player) return null; // Empty seat
 
     return (
-        <div className="relative w-20 sm:w-24 rounded-2xl p-1 transition-all duration-300">
+        <div className={cn("relative flex flex-col items-center justify-center transition-all duration-500", isFolded ? "opacity-50 grayscale" : "opacity-100")}>
 
-            {/* Dealer Button */}
-            {isDealer && (
-                <div className="absolute -top-2 -right-2 h-5 w-5 sm:h-6 sm:w-6 bg-yellow-400 border border-yellow-600 text-yellow-900 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold z-20 shadow-sm">
-                    D
+            {/* 1. PLAYER TOKEN (The Seat Itself) */}
+            <div className="relative group">
+
+                {/* Active Cards (Peeking from behind) */}
+                {!isFolded && !isHero && (
+                    <div className="absolute -z-10 top-[-10px] left-1/2 -translate-x-1/2 flex gap-1 w-12 h-10">
+                        <div className="w-6 h-8 bg-white border-2 border-slate-300 rounded-sm rotate-[-15deg] shadow-sm" />
+                        <div className="w-6 h-8 bg-white border-2 border-slate-300 rounded-sm rotate-[15deg] shadow-sm -ml-3" />
+                    </div>
+                )}
+
+                {/* The "Clay" Token Body */}
+                <div className={cn(
+                    "w-16 h-16 sm:w-20 sm:h-20 rounded-full flex flex-col items-center justify-center relative z-10 transition-transform",
+                    "bg-slate-100 shadow-[inset_2px_2px_5px_rgba(255,255,255,1),inset_-2px_-2px_5px_rgba(0,0,0,0.1),0_5px_10px_rgba(0,0,0,0.15)]", // Claymorphism
+                    isHero ? "ring-4 ring-yellow-400/50" : "border-4 border-slate-200"
+                )}>
+                    {/* Avatar */}
+                    <span className="text-2xl sm:text-3xl select-none filter drop-shadow-sm">
+                        {player.avatar || '👤'}
+                    </span>
+
+                    {/* Dealer Button (Pinned to Token) */}
+                    {isDealer && (
+                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white shadow-md z-20 text-yellow-900">
+                            D
+                        </div>
+                    )}
                 </div>
-            )}
 
-            {/* Bet Amount (Animated) */}
+                {/* Name & Stack Badge (Floating below) */}
+                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center w-max">
+                    <div className="bg-slate-800 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full shadow-lg border border-slate-600 flex items-center gap-1">
+                        <span className="text-slate-400 uppercase tracking-tighter text-[8px]">{positionLabel}</span>
+                        <span>${player.stack}</span>
+                    </div>
+                </div>
+
+                {/* ACTION BUBBLE (Pop-up) */}
+                <AnimatePresence>
+                    {lastAction && !isFolded && (
+                        <motion.div
+                            initial={{ scale: 0, y: 10, opacity: 0 }}
+                            animate={{ scale: 1, y: 0, opacity: 1 }}
+                            exit={{ scale: 0, opacity: 0 }}
+                            className="absolute -top-6 left-1/2 -translate-x-1/2 z-30"
+                        >
+                            <div className={cn(
+                                "px-3 py-1 rounded-lg font-black text-xs shadow-xl border-b-2 uppercase whitespace-nowrap",
+                                lastAction.includes('Fold') ? "bg-red-500 text-white border-red-700" :
+                                    lastAction.includes('Raise') ? "bg-orange-500 text-white border-orange-700" :
+                                        "bg-white text-slate-800 border-slate-300"
+                            )}>
+                                {lastAction}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+
+            {/* 2. BET CHIPS (Animating to Pot) */}
             <AnimatePresence>
                 {betAmount > 0 && (
-                    <motion.div
-                        initial={{ scale: 0, opacity: 0, y: 0, x: 0 }}
-                        animate={{ scale: 1, opacity: 1, y: 0, x: 0 }}
-                        exit={{
-                            ...getChipExitAnimation(position),
-                            transition: { duration: 0.4, ease: "backIn" }
-                        }}
-                        className={`absolute ${getChipPosition(position)} flex flex-col items-center z-30`}
-                    >
-                        <div className="bg-neutral-800 px-2 py-1 rounded-full border border-neutral-700 flex items-center gap-1 shadow-lg whitespace-nowrap">
-                            <Coins className="w-3 h-3 text-yellow-400" />
-                            <span className="text-white text-xs font-bold">${betAmount}</span>
-                        </div>
-                    </motion.div>
+                    <BettingStack amount={betAmount} position={position} />
                 )}
             </AnimatePresence>
-
-            {/* Active Cards Indicator */}
-            {!isFolded && !isHero && (
-                <div className={`absolute z-20 flex scale-75 sm:scale-100 origin-center ${(position >= 2 && position <= 4)
-                    ? "-bottom-1 -right-3 sm:-bottom-2 sm:-right-4"
-                    : "-bottom-1 -left-3 sm:-bottom-2 sm:-left-4"
-                    }`}>
-                    <div className="w-5 h-7 bg-brand-primary rounded-[2px] border border-white shadow-sm transform -rotate-12 origin-bottom-right"></div>
-                    <div className="w-5 h-7 bg-brand-primary rounded-[2px] border border-white shadow-sm transform rotate-6 -ml-3"></div>
-                </div>
-            )}
-
-            {/* Inner Content - Glassmorphism Card with opacity effect applied here */}
-            <div className={`h-full w-full rounded-xl flex flex-col overflow-hidden border border-neutral-200 transition-all duration-300 ${isFolded
-                ? 'opacity-40 grayscale blur-[0.5px] scale-95 bg-neutral-100'
-                : 'scale-100 bg-white shadow-md ring-2 ring-brand-primary/20'
-                }`}>
-                {/* Avatar */}
-                <div className="flex-[0.5] flex items-center justify-center p-1 bg-neutral-50">
-                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full flex items-center justify-center bg-white border border-neutral-100 shadow-inner text-2xl">
-                        {player.avatar && player.avatar.length > 4 ? (
-                            <img src={player.avatar} alt={player.name} className="w-full h-full rounded-full object-cover" />
-                        ) : (
-                            <span className="text-2xl sm:text-3xl">{player.avatar || animal}</span>
-                        )}
-                    </div>
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 flex flex-col justify-center gap-0.5 bg-white p-1">
-                    <div className="flex items-center justify-between text-[10px] sm:text-xs font-extrabold border-b border-neutral-100 pb-0.5">
-                        <span className="text-neutral-600 tracking-wider">{positionLabel || 'POS'}</span>
-                        <span className="text-black text-sm">${player.stack}</span>
-                    </div>
-                    <div className="text-center text-xs sm:text-sm font-bold truncate text-brand-primary h-5 flex items-center justify-center">
-                        {lastAction || ''}
-                    </div>
-                </div>
-            </div>
         </div>
     );
 }

@@ -39,6 +39,137 @@ body {
   @apply bg-white/80 backdrop-blur-md border border-white/50 shadow-sm;
 }
 
+@layer components {
+  .btn-clay-blitz {
+    @apply relative overflow-hidden bg-yellow-400 text-yellow-950 rounded-3xl p-5 border-2 border-white/30 transition-all duration-100 ease-out;
+    /* Apply the custom shadow defined in config */
+    @apply shadow-clay-yellow;
+  }
+
+  .btn-clay-blitz:active {
+    /* Move down to simulate physical press */
+    @apply translate-y-[8px];
+    /* Switch shadow to "pressed in" look */
+    @apply shadow-clay-yellow-active;
+  }
+
+  /* Optional: Add a subtle sheen/noise texture for extra realism if desired */
+  .btn-clay-blitz::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-br from-white/40 to-transparent pointer-events-none;
+  }
+
+  /* Small Circular Clay Button (Profile, Settings) */
+  .clay-btn-round {
+    @apply w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center border border-white/50 transition-all duration-100 ease-out;
+    @apply shadow-clay-neutral-sm;
+  }
+
+  .clay-btn-round:active {
+    @apply translate-y-[4px] shadow-clay-pressed-sm bg-slate-200;
+  }
+
+  /* Stat Pill - Blue (Bankroll) */
+  .clay-pill-blue {
+    @apply px-3 py-1.5 rounded-full bg-blue-50 text-blue-900 border border-white/50 flex items-center gap-2 font-black text-sm;
+    @apply shadow-clay-blue-sm;
+  }
+
+  /* Stat Pill - Green (Bankroll - Money) */
+  .clay-pill-green {
+    @apply px-3 py-1.5 rounded-full bg-green-50 text-green-900 border border-white/50 flex items-center gap-2 font-black text-sm;
+    @apply shadow-clay-green-sm;
+  }
+
+  /* Stat Pill - Orange (Streak) */
+  .clay-pill-orange {
+    @apply px-3 py-1.5 rounded-full bg-orange-50 text-orange-900 border border-white/50 flex items-center gap-2 font-black text-sm;
+    @apply shadow-clay-orange-sm;
+  }
+
+  .card-clay-story {
+    @apply relative overflow-hidden bg-green-500 text-white rounded-[2rem] p-6 border-4 border-white/20 transition-all duration-100 ease-out cursor-pointer;
+    @apply shadow-clay-green;
+  }
+
+  .card-clay-story:active {
+    @apply translate-y-[8px] shadow-clay-green-active;
+  }
+
+  /* Subtle sheen for plastic feel */
+  .card-clay-story::after {
+    content: '';
+    @apply absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-white/10 to-transparent pointer-events-none;
+  }
+
+  .btn-clay-stats {
+    @apply relative overflow-hidden bg-purple-400 text-white rounded-3xl p-5 border-2 border-white/30 transition-all duration-100 ease-out cursor-pointer;
+    @apply shadow-clay-purple;
+  }
+
+  .btn-clay-stats:active {
+    @apply translate-y-[8px] shadow-clay-purple-active;
+  }
+
+  /* Sheen */
+  .btn-clay-stats::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-br from-white/30 to-transparent pointer-events-none;
+  }
+
+  /* Blue Clay Button (Trainer) */
+  .btn-clay-blue {
+    @apply relative overflow-hidden bg-blue-400 text-white rounded-3xl p-4 border-2 border-white/30 transition-all duration-100 ease-out cursor-pointer;
+    @apply shadow-clay-blue;
+  }
+
+  .btn-clay-blue:active {
+    @apply translate-y-[8px] shadow-clay-blue-active;
+  }
+
+  .btn-clay-blue::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-br from-white/30 to-transparent pointer-events-none;
+  }
+
+  /* Pink Clay Button (Detective) */
+  .btn-clay-pink {
+    @apply relative overflow-hidden bg-pink-500 text-white rounded-3xl p-4 border-2 border-white/30 transition-all duration-100 ease-out cursor-pointer;
+    @apply shadow-clay-pink;
+  }
+
+  .btn-clay-pink:active {
+    @apply translate-y-[8px] shadow-clay-pink-active;
+  }
+
+  .btn-clay-pink::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-br from-white/30 to-transparent pointer-events-none;
+  }
+
+  /* Unfinished Goal Item */
+  .goal-item-clay {
+    @apply flex items-center justify-between p-3 rounded-xl bg-white border-2 border-white/50 shadow-sm transition-all;
+    @apply shadow-[0_2px_0_#cbd5e1];
+    /* Small clay pop */
+  }
+
+  /* Finished Goal Item */
+  .goal-item-clay-done {
+    @apply flex items-center justify-between p-3 rounded-xl bg-green-100 text-green-800 border-2 border-transparent transition-all opacity-80;
+    @apply shadow-clay-inset-green translate-y-[2px];
+    /* Pressed in look */
+  }
+
+  .shadow-clay-card {
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+      0 10px 15px -3px rgba(0, 0, 0, 0.1),
+      0 4px 6px -2px rgba(0, 0, 0, 0.05),
+      0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  }
+}
+
 @keyframes shake {
 
   0%,
