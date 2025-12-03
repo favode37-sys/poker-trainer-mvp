@@ -17,7 +17,6 @@ import { geminiService } from '@/lib/gemini';
 import { playSuccessEffect, playFoldEffect, triggerShake, triggerHaptic } from '@/lib/effects';
 import { type Quest } from '@/hooks/useQuests';
 import { BOSSES, type BossId } from './boss-profiles';
-// NEW IMPORT
 import { bossLogic } from '@/lib/boss-logic';
 
 interface GameTableProps {
@@ -34,27 +33,17 @@ interface GameTableProps {
     bossId?: BossId;
 }
 
-// [NEW] Standard acting order for 6-max
-
-
 export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelComplete, onBackToMap, bankroll, streak, updateBankroll, onQuestEvent, bossId }: GameTableProps) {
     // Boss setup
     const boss = bossId ? BOSSES[bossId] : null;
     const [villainMessage, setVillainMessage] = useState("");
     const tableTheme = boss ? boss.colorTheme : undefined;
-
-    // State for Boss Briefing
     const [showBriefing, setShowBriefing] = useState<boolean>(!!bossId);
 
     // [NEW] Track chips added by player interaction
     const [addedHeroChips, setAddedHeroChips] = useState(0);
 
-    // [NEW] Cinematic Playback State
-    // 0: Init (Empty)
-    // 1: Deal Hero (Cards fly in)
-    // 2: Deal Board (Community cards appear)
-    // 3: Villain Action (Chips & Bubble appear)
-    // 4: Ready (Controls unlock)
+    // Cinematic Playback
     const [playbackStage, setPlaybackStage] = useState<0 | 1 | 2 | 3 | 4>(0);
 
     const handleStartBossFight = () => {
@@ -75,17 +64,13 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         scenarioIds,
         onLevelComplete: () => {
             analytics.levelComplete(levelId, xpReward);
-            console.log('🎊 All scenarios completed for level:', levelId);
         },
         onCorrectAnswer: () => {
             updateBankroll(10);
             onQuestEvent('play_hands', 1);
             onQuestEvent('win_hands', 1);
-            if (currentScenario?.correctAction === 'Fold') {
-                onQuestEvent('correct_folds', 1);
-            }
+            if (currentScenario?.correctAction === 'Fold') onQuestEvent('correct_folds', 1);
 
-            // BOSS REACTION ON LOSS (Player Wins)
             if (boss) {
                 const reaction = boss.phrases.lose[Math.floor(Math.random() * boss.phrases.lose.length)];
                 setVillainMessage(reaction);
@@ -95,8 +80,6 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         onWrongAnswer: () => {
             updateBankroll(-50);
             onQuestEvent('play_hands', 1);
-
-            // BOSS REACTION ON WIN (Player Loses)
             if (boss) {
                 const reaction = boss.phrases.win[Math.floor(Math.random() * boss.phrases.win.length)];
                 setVillainMessage(reaction);
@@ -105,41 +88,20 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         }
     });
 
-    // [NEW] Replay Effect
+    // Replay Effect
     useEffect(() => {
         if (!currentScenario) return;
-
-        setPlaybackStage(0); // Reset
+        setPlaybackStage(0);
+        setAddedHeroChips(0); // Reset added chips
 
         const timeline = [
-            // Stage 1: Hero Cards (100ms)
-            {
-                stage: 1,
-                delay: 100,
-                action: () => soundEngine.playCard()
-            },
-            // Stage 2: Board Cards (600ms) - only if board exists
-            {
-                stage: 2,
-                delay: 600,
-                action: () => currentScenario.communityCards.length > 0 && soundEngine.playCard()
-            },
-            // Stage 3: Villain Action (1100ms) - only if villain acts/bets
-            {
-                stage: 3,
-                delay: 1100,
-                action: () => (currentScenario.villainChipsInFront! > 0 || currentScenario.villainAction) && soundEngine.playChips()
-            },
-            // Stage 4: Ready (1600ms)
-            {
-                stage: 4,
-                delay: 1600,
-                action: () => { }
-            }
+            { stage: 1, delay: 100, action: () => soundEngine.playCard() },
+            { stage: 2, delay: 600, action: () => currentScenario.communityCards.length > 0 && soundEngine.playCard() },
+            { stage: 3, delay: 1100, action: () => (currentScenario.villainChipsInFront! > 0 || currentScenario.villainAction) && soundEngine.playChips() },
+            { stage: 4, delay: 1600, action: () => { } }
         ];
 
         const timeouts: ReturnType<typeof setTimeout>[] = [];
-
         timeline.forEach(({ stage, delay, action }) => {
             const t = setTimeout(() => {
                 setPlaybackStage(stage as any);
@@ -147,20 +109,12 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
             }, delay);
             timeouts.push(t);
         });
-
         return () => timeouts.forEach(clearTimeout);
-    }, [currentScenario?.id]); // Trigger on new scenario
-
-    // Reset chips when scenario changes
-    useEffect(() => {
-        setAddedHeroChips(0);
     }, [currentScenario?.id]);
 
-    // ... (rest of standard checks)
 
-    if (!currentScenario) return null; // Simplified loading check
+    if (!currentScenario) return null;
 
-    // Destructure new fields
     const {
         villainAction,
         heroCards,
@@ -168,54 +122,41 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         potSize,
         heroPosition = 'BTN',
         villainPosition = 'BB',
-        heroChipsInFront = 0,
+        heroChipsInFront = 0, // THIS IS START STATE
         villainChipsInFront = 0
     } = currentScenario;
 
-    // [NEW] Derived Data for Rendering based on Stage
     const showHeroCards = playbackStage >= 1;
     const showBoard = playbackStage >= 2;
     const showVillainAction = playbackStage >= 3;
     const isReady = playbackStage >= 4;
 
-    // --- Hero Chips Logic ---
+    // --- CHIPS LOGIC ---
     const isPreflop = communityCards.length === 0;
 
-    // 1. Base chips (from Scenario start state)
+    // 1. Base (Start) Chips
     let baseHeroChips = heroChipsInFront;
     if (isPreflop && baseHeroChips === 0) {
         if (heroPosition === 'SB') baseHeroChips = 0.5;
         if (heroPosition === 'BB') baseHeroChips = 1.0;
     }
 
-    // 2. Total chips to display (Base + Added by Action)
+    // 2. Display = Base + Added (Animation)
     const displayHeroChips = baseHeroChips + addedHeroChips;
 
-    // --- [NEW] Helper: Calculate state for "Filler" (background) players ---
 
-
-    // --- SEAT LOGIC ---
-    const seatConfigs = calculateTableSeats(
-        heroPosition as Position,
-        villainPosition as Position
-    );
+    // --- SEATS ---
+    const seatConfigs = calculateTableSeats(heroPosition as Position, villainPosition as Position);
 
     const seatsArray = seatConfigs.map((config) => {
-        // 1. HERO
         if (config.isHero) return undefined;
-
-        // 2. VILLAIN (Always Active)
         if (config.isVillain) {
             const stack = 100 - villainChipsInFront;
-
-            // Determine displayed bet for Villain
-            // If action hasn't started, show blinds if applicable
             let displayBet = villainChipsInFront;
             if (currentScenario.actionHistory.length === 0 && displayBet === 0) {
                 if (config.positionLabel === 'SB') displayBet = 0.5;
                 if (config.positionLabel === 'BB') displayBet = 1.0;
             }
-
             return {
                 player: {
                     name: boss ? boss.name : 'Villain',
@@ -223,7 +164,6 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                     isActive: true,
                     avatar: boss ? boss.avatar : undefined
                 },
-                // [UPDATE] Hide bet/action until Stage 3
                 betAmount: showVillainAction ? displayBet : 0,
                 positionLabel: config.positionLabel,
                 isFolded: false,
@@ -232,113 +172,54 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                 isHero: false
             };
         }
-
-        // 3. FILLER PLAYERS (Dynamic Logic)
         const { isFolded, betAmount } = getFillerSeatStatus(
             config.positionLabel,
             heroPosition as Position,
             currentScenario.street,
             currentScenario.actionHistory
         );
-
         return {
             player: { name: `Player ${config.id}`, stack: 100, isActive: !isFolded },
             positionLabel: config.positionLabel,
             isFolded: isFolded,
             lastAction: isFolded ? 'Fold' : '',
             isDealer: config.isDealer,
-            betAmount: betAmount, // Show blind if active
+            betAmount: betAmount,
             isHero: false
         };
     });
 
-    const seats: [any, any, any, any, any, any] = [
-        seatsArray[0], seatsArray[1], seatsArray[2], seatsArray[3], seatsArray[4], seatsArray[5]
-    ];
-    // ------------------
+    const seats = [undefined, ...seatsArray.slice(1)] as any;
 
-    // Coach Logic
-    const [coachExplanation, setCoachExplanation] = useState<string>('');
-    const [isCoachLoading, setIsCoachLoading] = useState(false);
-    const [isCoachOpen, setIsCoachOpen] = useState(false);
-
-    // Initial Boss Greeting
-    useEffect(() => {
-        if (boss) {
-            setVillainMessage(boss.phrases.greeting);
-            const timer = setTimeout(() => setVillainMessage(""), 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [boss]);
-
-    useEffect(() => {
-        soundEngine.init();
-    }, []);
-
-    const handleOpenCoach = async () => {
-        setIsCoachOpen(true);
-        analytics.coachOpened(currentScenario.id, 'game_table');
-
-        if (!coachExplanation) {
-            setIsCoachLoading(true);
-            const isLastCorrect = gameState === 'success';
-            const userActionDescription = isLastCorrect ? currentScenario.correctAction : "Incorrect Move";
-
-            try {
-                // PASS BOSS PROFILE TO COACH
-                const advice = await geminiService.getCoachAdvice(
-                    currentScenario,
-                    userActionDescription,
-                    isLastCorrect,
-                    boss || undefined
-                );
-                setCoachExplanation(advice);
-            } catch (e) {
-                console.error(e);
-                setCoachExplanation(currentScenario.explanation_deep);
-            } finally {
-                setIsCoachLoading(false);
-            }
-        }
-    };
-
-    const handleContinueJourney = () => {
-        onLevelComplete(levelId);
-        onBackToMap();
-    };
-
+    // --- HANDLERS ---
     const handleActionWithSound = (action: 'Fold' | 'Call' | 'Raise') => {
-        // Haptic feedback based on action weight
         if (action === 'Fold') triggerHaptic('light');
         if (action === 'Call') triggerHaptic('medium');
         if (action === 'Raise') triggerHaptic('heavy');
 
         soundEngine.playClick();
+
+        // [NEW] Dynamic Chip Animation
+        if (action === 'Raise') {
+            // Get target from scenario OR calc 3x fallback
+            const targetAmount = currentScenario.defaultRaiseAmount || (villainChipsInFront > 0 ? villainChipsInFront * 3 : 3);
+            const chipsToAdd = Math.max(0, targetAmount - baseHeroChips);
+            setAddedHeroChips(chipsToAdd);
+        }
+        if (action === 'Call') {
+            const callAmount = Math.max(0, villainChipsInFront - baseHeroChips);
+            setAddedHeroChips(callAmount);
+        }
+
         const isCorrect = action === currentScenario.correctAction;
         analytics.scenarioResult(currentScenario.id, isCorrect, action);
 
-        // --- BOSS DYNAMIC REACTION ---
         if (boss) {
             const reaction = bossLogic.getReaction(boss, action, { potSize });
             if (reaction) {
                 setVillainMessage(reaction);
-                // Clear reaction after 2.5s so it doesn't stick
                 setTimeout(() => setVillainMessage(""), 2500);
             }
-        }
-        // -----------------------------
-
-        // [NEW] Visualize the Bet
-        if (action === 'Call') {
-            // Amount to call is the gap between Villain and Hero
-            const callAmount = Math.max(0, villainChipsInFront - baseHeroChips);
-            setAddedHeroChips(callAmount);
-        }
-        if (action === 'Raise') {
-            // Raise to the specific amount defined in scenario
-            const targetAmount = currentScenario.defaultRaiseAmount || (villainChipsInFront * 3);
-            const added = Math.max(0, targetAmount - baseHeroChips);
-            setAddedHeroChips(added);
         }
 
         if (isCorrect) {
@@ -353,21 +234,57 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         handleAction(action);
     };
 
+    // ... Coach ...
+    const [coachExplanation, setCoachExplanation] = useState<string>('');
+    const [isCoachLoading, setIsCoachLoading] = useState(false);
+    const [isCoachOpen, setIsCoachOpen] = useState(false);
+
+    useEffect(() => {
+        if (boss) {
+            setVillainMessage(boss.phrases.greeting);
+            const timer = setTimeout(() => setVillainMessage(""), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [boss]);
+
+    useEffect(() => { soundEngine.init(); }, []);
+
+    const handleOpenCoach = async () => {
+        setIsCoachOpen(true);
+        if (!coachExplanation) {
+            setIsCoachLoading(true);
+            const isLastCorrect = gameState === 'success';
+            const userActionDescription = isLastCorrect ? currentScenario.correctAction : "Incorrect Move";
+            try {
+                const advice = await geminiService.getCoachAdvice(
+                    currentScenario,
+                    userActionDescription,
+                    isLastCorrect,
+                    boss || undefined
+                );
+                setCoachExplanation(advice);
+            } catch (e) {
+                setCoachExplanation(currentScenario.explanation_deep);
+            } finally {
+                setIsCoachLoading(false);
+            }
+        }
+    };
+
     const amountToCall = currentScenario.amountToCall ?? Math.max(0, villainChipsInFront - heroChipsInFront);
     const isCheck = amountToCall === 0;
     const raiseAmount = currentScenario.defaultRaiseAmount;
 
+    const handleContinueJourney = () => {
+        onLevelComplete(levelId);
+        onBackToMap();
+    };
+
     return (
         <div id="game-table-container" className="absolute inset-0 bg-neutral-bg flex flex-col overflow-hidden font-sans">
-            {/* BOSS BRIEFING OVERLAY */}
             <AnimatePresence>
                 {showBriefing && boss && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[100]"
-                    >
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100]">
                         <BossBriefing boss={boss} onStart={handleStartBossFight} />
                     </motion.div>
                 )}
@@ -395,53 +312,43 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                 </div>
             </div>
 
-            {/* Table Area */}
+            {/* Table */}
             <div className="flex-1 min-h-0 w-full flex items-center justify-center relative p-4">
                 <div className="relative w-full h-full max-w-md">
-                    <TableLayout
-                        seats={seats}
-                        // [UPDATE] Hide board until Stage 2
-                        communityCards={showBoard ? communityCards : []}
-                        potSize={potSize}
-                        themeClass={tableTheme}
-                    />
-
-                    {/* Villain Message Bubble */}
+                    <TableLayout seats={seats} communityCards={showBoard ? communityCards : []} potSize={potSize} themeClass={tableTheme} />
                     <AnimatePresence>
                         {villainMessage && showVillainAction && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.9 }}
-                                className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-white px-4 py-2 rounded-2xl rounded-bl-none shadow-xl border-2 border-brand-primary/20 max-w-[200px]"
-                            >
-                                <p className="text-xs sm:text-sm font-bold text-slate-800 text-center leading-tight">
-                                    {villainMessage}
-                                </p>
+                            <motion.div initial={{ opacity: 0, y: 10, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-white px-4 py-2 rounded-2xl rounded-bl-none shadow-xl border-2 border-brand-primary/20 max-w-[200px]">
+                                <p className="text-xs sm:text-sm font-bold text-slate-800 text-center leading-tight">{villainMessage}</p>
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </div>
             </div>
 
-            {/* Hero Cards Overlay */}
+            {/* Hero Overlay */}
             <div className="absolute bottom-[110px] sm:bottom-[138px] left-1/2 -translate-x-1/2 sm:left-[30px] sm:translate-x-0 flex gap-2 z-30 origin-bottom scale-[0.65] sm:scale-[0.8] sm:origin-bottom-left pointer-events-none">
                 {seatConfigs[0].isDealer && (
                     <div className="absolute -top-6 -right-2 sm:-top-4 sm:-right-4 h-6 w-6 sm:h-8 sm:w-8 bg-yellow-400 border border-yellow-500 text-yellow-950 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold z-40 shadow-md">D</div>
                 )}
+                {/* [UPDATE] Dynamic Chips Display */}
                 {displayHeroChips > 0 && (
                     <div className="absolute -top-12 sm:-top-10 left-1/2 -translate-x-1/2 flex flex-col items-center z-30">
-                        <div className="bg-neutral-900 px-2 py-1 rounded-full border border-neutral-700 flex items-center gap-1 shadow-lg whitespace-nowrap">
+                        <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            key={displayHeroChips} // Re-animate on change
+                            className="bg-neutral-900 px-2 py-1 rounded-full border border-neutral-700 flex items-center gap-1 shadow-lg whitespace-nowrap"
+                        >
                             <Coins className="w-3 h-3 text-yellow-400" />
                             <span className="text-white text-xs font-bold">${displayHeroChips}</span>
-                        </div>
+                        </motion.div>
                     </div>
                 )}
-                {/* [UPDATE] Hide Hero Cards until Stage 1 */}
                 {showHeroCards && heroCards.map((card, index) => (
                     <motion.div
                         key={`${currentScenario.id}-hero-${index}`}
-                        initial={{ y: 200, opacity: 0, rotate: 0 }} // Start further down
+                        initial={{ y: 200, opacity: 0, rotate: 0 }}
                         animate={{ y: 0, opacity: 1, rotate: index === 0 ? -5 : 5 }}
                         transition={{ type: 'spring', stiffness: 200, damping: 20 }}
                         className="origin-bottom"
