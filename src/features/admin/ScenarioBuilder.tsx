@@ -22,7 +22,7 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
     ]);
 
     const [blinds, setBlinds] = useState({ sb: 0.5, bb: 1 });
-    const [potSize, setPotSize] = useState(2.5);
+    const [potSize, setPotSize] = useState(0);
     const [heroStack, setHeroStack] = useState(100);
     const [heroChips, setHeroChips] = useState(0);
 

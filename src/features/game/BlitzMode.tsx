@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { PlayingCard } from '@/components/ui/PlayingCard';
 import { TableLayout } from '@/components/game/TableLayout';
 import { useBlitzLogic } from './useBlitzLogic';
-import { calculateTableSeats, type Position } from '@/lib/poker-engine';
+import { calculateTableSeats, getFillerSeatStatus, type Position } from '@/lib/poker-engine';
 import { useState, useEffect, useRef } from 'react';
 import { type Quest } from '@/hooks/useQuests';
 import { triggerHaptic } from '@/lib/effects';
@@ -19,6 +19,9 @@ interface BlitzModeProps {
     onBack: () => void;
     onQuestEvent: (type: Quest['type'], amount?: number) => void;
 }
+
+// [NEW] Standard acting order
+
 
 export function BlitzMode({ onBack, onQuestEvent }: BlitzModeProps) {
     const [gameOverScore, setGameOverScore] = useState<number | null>(null);
@@ -37,6 +40,9 @@ export function BlitzMode({ onBack, onQuestEvent }: BlitzModeProps) {
 
     const { unlock, lastUnlocked } = useAchievements();
     const { bankroll } = usePlayerState();
+
+    // --- [NEW] Ported Helper: Calculate state for "Filler" players ---
+
 
     if (!currentScenario) {
         return (
@@ -164,33 +170,21 @@ export function BlitzMode({ onBack, onQuestEvent }: BlitzModeProps) {
         }
 
 
-        // Filler players (non-Hero, non-Villain)
-        // Everyone is active initially (history length 0). 
-        // Non-blinds fold immediately once any action happens (> 0).
-        let isFillerFolded = currentScenario.actionHistory.length > 0;
-        let fillerBet = 0;
-
-        // Keep blinds active on Preflop ONLY if no actions have occurred yet
-        if (communityCards.length === 0) {
-            if (config.positionLabel === 'SB') {
-                fillerBet = 0.5;
-                // SB stays active longer (until 2nd action)
-                isFillerFolded = currentScenario.actionHistory.length > 1;
-            } else if (config.positionLabel === 'BB') {
-                fillerBet = 1.0;
-                // BB stays active longer (until 2nd action)
-                isFillerFolded = currentScenario.actionHistory.length > 1;
-            }
-        }
-
+        // 3. FILLER PLAYERS (Updated with new Logic)
+        const { isFolded, betAmount } = getFillerSeatStatus(
+            config.positionLabel,
+            (heroPosition || 'BTN') as Position,
+            currentScenario.street,
+            currentScenario.actionHistory
+        );
 
         return {
-            player: { name: `Player ${config.id}`, stack: 100, isActive: !isFillerFolded },
+            player: { name: `Player ${config.id}`, stack: 100, isActive: !isFolded },
             positionLabel: config.positionLabel,
-            isFolded: isFillerFolded,
-            lastAction: isFillerFolded ? 'Fold' : '',
+            isFolded: isFolded,
+            lastAction: isFolded ? 'Fold' : '',
             isDealer: config.isDealer,
-            betAmount: fillerBet,
+            betAmount: betAmount,
             isHero: false
         };
     });

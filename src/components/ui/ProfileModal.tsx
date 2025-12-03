@@ -14,7 +14,6 @@ interface ProfileModalProps {
 
 export function ProfileModal({ isOpen, onClose, onOpenStats, onOpenSettings, username = "Player 1" }: ProfileModalProps) {
     const { allAchievements, unlockedIds } = useAchievements();
-    const progress = Math.round((unlockedIds.length / allAchievements.length) * 100);
 
     return (
         <AnimatePresence>

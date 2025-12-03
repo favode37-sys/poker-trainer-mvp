@@ -166,9 +166,8 @@ class SoundEngine {
     playBadge() {
         if (this.muted) return;
         try {
-            const ctx = this.getContext();
             const notes = [880, 1108, 1318]; // A5, C#6, E6
-            notes.forEach((freq, i) => {
+            notes.forEach((freq) => {
                 this.playTone(freq, 0.4, 'sine', 0.2);
             });
         } catch (e) {
@@ -198,6 +197,18 @@ class SoundEngine {
         } catch (e: unknown) {
             console.warn('Failed to initialize audio:', e);
         }
+    }
+    // Card slide/deal sound (Soft friction noise)
+    playCard() {
+        this.playTone(1200, 0.05, 'triangle', 0.15); // High, quick swish
+    }
+
+    // Chips stacking sound (Hard clack)
+    playChips() {
+        if (this.muted) return;
+        // Double tap to simulate stack collision
+        this.playTone(800, 0.03, 'sine', 0.2);
+        setTimeout(() => this.playTone(600, 0.04, 'sine', 0.2), 50);
     }
 }
 

@@ -100,3 +100,54 @@ export function calculateTableSeats(heroPos: Position, villainPos: Position): Se
 
     return seats;
 }
+
+// Standard acting order for 6-max
+export const PREFLOP_ORDER: Position[] = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'];
+
+/**
+ * Centralized algorithm to determine the state of "Filler" (background) players.
+ * Implements the "Traffic Light" logic based on Hero's position and betting round.
+ */
+export function getFillerSeatStatus(
+    seatPos: Position,
+    heroPos: Position,
+    street: string = 'preflop',
+    actionHistory: string[] = []
+): { isFolded: boolean; betAmount: number } {
+    // 1. Postflop: In standard drills, background players are usually out
+    if (street !== 'preflop') {
+        return { isFolded: true, betAmount: 0 };
+    }
+
+    // 2. Preflop Logic
+    const heroIdx = PREFLOP_ORDER.indexOf(heroPos);
+    const thisIdx = PREFLOP_ORDER.indexOf(seatPos);
+    const hasActionStarted = actionHistory.length > 0;
+
+    let isFolded = true;
+    let betAmount = 0;
+
+    // Blinds always post chips initially
+    if (seatPos === 'SB') betAmount = 0.5;
+    if (seatPos === 'BB') betAmount = 1.0;
+
+    if (!hasActionStarted) {
+        // SCENARIO START (Hero to Act):
+        // Players BEFORE Hero have acted. If they are not the Villain, they folded.
+        if (thisIdx < heroIdx) {
+            isFolded = true;
+            betAmount = 0; // Chips swept
+        }
+        // Players AFTER Hero are waiting to act (Active)
+        else {
+            isFolded = false;
+        }
+    } else {
+        // ACTION HAPPENED (Hero acted):
+        // In isolation drills, we assume everyone else folds
+        isFolded = true;
+        betAmount = 0;
+    }
+
+    return { isFolded, betAmount };
+}
