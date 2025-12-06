@@ -120,7 +120,6 @@ export function BlitzMode({ onBack, onQuestEvent }: BlitzModeProps) {
                 <SmartTable
                     currentScenario={currentScenario}
                     onActionComplete={(action) => handleAction(action)}
-                    customTheme="bg-slate-900"
                     renderControls={({ handleAction: onAction, isReady, amountToCall }: SmartTableControlsProps) => {
                         const isCheck = amountToCall === 0;
                         return (
