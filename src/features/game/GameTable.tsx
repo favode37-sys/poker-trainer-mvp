@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, ArrowLeft, Coins } from 'lucide-react';
+import { Flame, ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { PlayingCard } from '@/components/ui/PlayingCard';
@@ -9,6 +9,7 @@ import { LevelCompleteModal } from '@/components/ui/LevelCompleteModal';
 import { TableLayout } from '@/components/game/TableLayout';
 import { CoachModal } from '@/components/game/CoachModal';
 import { BossBriefing } from '@/components/game/BossBriefing';
+import { BettingStack } from '@/components/game/BettingStack'; // [NEW] Import
 import { useGameLogic } from '@/features/game/useGameLogic';
 import { soundEngine } from '@/lib/sound';
 import { calculateTableSeats, getFillerSeatStatus, type Position } from '@/lib/poker-engine';
@@ -34,16 +35,12 @@ interface GameTableProps {
 }
 
 export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelComplete, onBackToMap, bankroll, streak, updateBankroll, onQuestEvent, bossId }: GameTableProps) {
-    // Boss setup
     const boss = bossId ? BOSSES[bossId] : null;
     const [villainMessage, setVillainMessage] = useState("");
     const tableTheme = boss ? boss.colorTheme : undefined;
     const [showBriefing, setShowBriefing] = useState<boolean>(!!bossId);
 
-    // [NEW] Track chips added by player interaction
     const [addedHeroChips, setAddedHeroChips] = useState(0);
-
-    // Cinematic Playback
     const [playbackStage, setPlaybackStage] = useState<0 | 1 | 2 | 3 | 4>(0);
 
     const handleStartBossFight = () => {
@@ -62,18 +59,14 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         totalQuestions,
     } = useGameLogic({
         scenarioIds,
-        onLevelComplete: () => {
-            analytics.levelComplete(levelId, xpReward);
-        },
+        onLevelComplete: () => analytics.levelComplete(levelId, xpReward),
         onCorrectAnswer: () => {
             updateBankroll(10);
             onQuestEvent('play_hands', 1);
             onQuestEvent('win_hands', 1);
             if (currentScenario?.correctAction === 'Fold') onQuestEvent('correct_folds', 1);
-
             if (boss) {
-                const reaction = boss.phrases.lose[Math.floor(Math.random() * boss.phrases.lose.length)];
-                setVillainMessage(reaction);
+                setVillainMessage(boss.phrases.lose[Math.floor(Math.random() * boss.phrases.lose.length)]);
                 setTimeout(() => setVillainMessage(""), 3000);
             }
         },
@@ -81,18 +74,16 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
             updateBankroll(-50);
             onQuestEvent('play_hands', 1);
             if (boss) {
-                const reaction = boss.phrases.win[Math.floor(Math.random() * boss.phrases.win.length)];
-                setVillainMessage(reaction);
+                setVillainMessage(boss.phrases.win[Math.floor(Math.random() * boss.phrases.win.length)]);
                 setTimeout(() => setVillainMessage(""), 3000);
             }
         }
     });
 
-    // Replay Effect
     useEffect(() => {
         if (!currentScenario) return;
         setPlaybackStage(0);
-        setAddedHeroChips(0); // Reset added chips
+        setAddedHeroChips(0);
 
         const timeline = [
             { stage: 1, delay: 100, action: () => soundEngine.playCard() },
@@ -112,7 +103,6 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         return () => timeouts.forEach(clearTimeout);
     }, [currentScenario?.id]);
 
-
     if (!currentScenario) return null;
 
     const {
@@ -122,7 +112,7 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         potSize,
         heroPosition = 'BTN',
         villainPosition = 'BB',
-        heroChipsInFront = 0, // THIS IS START STATE
+        heroChipsInFront = 0,
         villainChipsInFront = 0
     } = currentScenario;
 
@@ -131,21 +121,16 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
     const showVillainAction = playbackStage >= 3;
     const isReady = playbackStage >= 4;
 
-    // --- CHIPS LOGIC ---
+    // --- 1. CALCULATE HERO CHIPS ---
     const isPreflop = communityCards.length === 0;
-
-    // 1. Base (Start) Chips
     let baseHeroChips = heroChipsInFront;
     if (isPreflop && baseHeroChips === 0) {
         if (heroPosition === 'SB') baseHeroChips = 0.5;
         if (heroPosition === 'BB') baseHeroChips = 1.0;
     }
-
-    // 2. Display = Base + Added (Animation)
     const displayHeroChips = baseHeroChips + addedHeroChips;
 
-
-    // --- SEATS ---
+    // --- 2. CALCULATE SEATS & VILLAIN CHIPS ---
     const seatConfigs = calculateTableSeats(heroPosition as Position, villainPosition as Position);
 
     const seatsArray = seatConfigs.map((config) => {
@@ -189,6 +174,13 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         };
     });
 
+    // --- 3. CALCULATE TOTAL LIVE POT ---
+    const villainBet = seatsArray.find(s => s?.player.name === (boss ? boss.name : 'Villain'))?.betAmount || 0;
+    const fillerBets = seatsArray.reduce((acc, s) => acc + (s && !s.player.name.includes('Villain') ? s.betAmount : 0), 0);
+
+    // Total Pot = Center Pot (Scenario) + Hero Live Bet + Villain Live Bet + Filler Bets
+    const livePotSize = potSize + displayHeroChips + villainBet + fillerBets;
+
     const seats = [undefined, ...seatsArray.slice(1)] as any;
 
     // --- HANDLERS ---
@@ -199,16 +191,16 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
 
         soundEngine.playClick();
 
-        // [NEW] Dynamic Chip Animation
         if (action === 'Raise') {
-            // Get target from scenario OR calc 3x fallback
             const targetAmount = currentScenario.defaultRaiseAmount || (villainChipsInFront > 0 ? villainChipsInFront * 3 : 3);
             const chipsToAdd = Math.max(0, targetAmount - baseHeroChips);
             setAddedHeroChips(chipsToAdd);
+            soundEngine.playChips(); // Play chip sound on raise
         }
         if (action === 'Call') {
             const callAmount = Math.max(0, villainChipsInFront - baseHeroChips);
             setAddedHeroChips(callAmount);
+            soundEngine.playChips();
         }
 
         const isCorrect = action === currentScenario.correctAction;
@@ -315,7 +307,8 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
             {/* Table */}
             <div className="flex-1 min-h-0 w-full flex items-center justify-center relative p-4">
                 <div className="relative w-full h-full max-w-md">
-                    <TableLayout seats={seats} communityCards={showBoard ? communityCards : []} potSize={potSize} themeClass={tableTheme} />
+                    {/* [UPDATE] Passing livePotSize instead of static potSize */}
+                    <TableLayout seats={seats} communityCards={showBoard ? communityCards : []} potSize={livePotSize} themeClass={tableTheme} />
                     <AnimatePresence>
                         {villainMessage && showVillainAction && (
                             <motion.div initial={{ opacity: 0, y: 10, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-white px-4 py-2 rounded-2xl rounded-bl-none shadow-xl border-2 border-brand-primary/20 max-w-[200px]">
@@ -331,20 +324,12 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                 {seatConfigs[0].isDealer && (
                     <div className="absolute -top-6 -right-2 sm:-top-4 sm:-right-4 h-6 w-6 sm:h-8 sm:w-8 bg-yellow-400 border border-yellow-500 text-yellow-950 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold z-40 shadow-md">D</div>
                 )}
-                {/* [UPDATE] Dynamic Chips Display */}
+
+                {/* [UPDATE] Use BettingStack for Hero chips animation */}
                 {displayHeroChips > 0 && (
-                    <div className="absolute -top-12 sm:-top-10 left-1/2 -translate-x-1/2 flex flex-col items-center z-30">
-                        <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            key={displayHeroChips} // Re-animate on change
-                            className="bg-neutral-900 px-2 py-1 rounded-full border border-neutral-700 flex items-center gap-1 shadow-lg whitespace-nowrap"
-                        >
-                            <Coins className="w-3 h-3 text-yellow-400" />
-                            <span className="text-white text-xs font-bold">${displayHeroChips}</span>
-                        </motion.div>
-                    </div>
+                    <BettingStack amount={displayHeroChips} position={1} />
                 )}
+
                 {showHeroCards && heroCards.map((card, index) => (
                     <motion.div
                         key={`${currentScenario.id}-hero-${index}`}
@@ -366,7 +351,6 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                         size="lg"
                         className="col-span-1 h-12 px-2"
                         onClick={() => handleActionWithSound('Fold')}
-                        // [UPDATE] Disable if not ready OR game not playing
                         disabled={!isReady || gameState !== 'playing'}
                     >
                         FOLD
@@ -376,7 +360,6 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                         size="lg"
                         className={`col-span-1 h-12 px-2 ${isCheck ? "bg-white/50 text-neutral-600" : ""}`}
                         onClick={() => handleActionWithSound('Call')}
-                        // [UPDATE] Disable if not ready OR game not playing
                         disabled={!isReady || gameState !== 'playing'}
                     >
                         {isCheck ? "CHECK" : <>CALL ${amountToCall}</>}
@@ -386,7 +369,6 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                         size="lg"
                         className="col-span-1 h-12 px-2"
                         onClick={() => handleActionWithSound('Raise')}
-                        // [UPDATE] Disable if not ready OR game not playing
                         disabled={!isReady || gameState !== 'playing'}
                     >
                         {raiseAmount ? <>RAISE ${raiseAmount}</> : 'RAISE'}

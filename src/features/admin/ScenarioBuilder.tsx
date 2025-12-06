@@ -29,7 +29,7 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
 
     // Game Context
     const [blinds] = useState({ sb: 0.5, bb: 1 });
-    const [potSize, setPotSize] = useState(2.5);
+    const [potSize, setPotSize] = useState(0);
     const [street, setStreet] = useState<'preflop' | 'flop' | 'turn' | 'river'>('preflop');
     const [actionHistory] = useState<string>('');
 
@@ -273,12 +273,13 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-[10px] text-slate-400 font-bold">POT SIZE</label>
+                            <label className="block text-[10px] text-slate-400 font-bold">POT SIZE (Center)</label>
                             <input
                                 type="number"
                                 value={potSize}
                                 onChange={e => setPotSize(+e.target.value)}
                                 className="border rounded p-1 bg-slate-50 w-24"
+                                placeholder="0"
                             />
                         </div>
                         <div className="col-span-2 flex items-end">
