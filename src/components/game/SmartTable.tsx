@@ -9,7 +9,6 @@ import { playSuccessEffect, playFoldEffect, triggerShake, triggerHaptic } from '
 import { type Scenario, type Action } from '@/lib/types';
 import { bossLogic } from '@/lib/boss-logic';
 
-// Helper types for the Render Prop pattern
 export interface SmartTableControlsProps {
     handleAction: (action: Action) => void;
     isReady: boolean;
@@ -20,10 +19,30 @@ export interface SmartTableControlsProps {
 interface SmartTableProps {
     currentScenario: Scenario;
     onActionComplete: (action: Action, isCorrect: boolean) => void;
-    renderControls: (props: SmartTableControlsProps) => ReactNode; // Custom buttons for each mode
-    boss?: any; // Optional boss data
-    onVillainMessage?: (msg: string) => void; // Callback to show speech bubbles
+    renderControls: (props: SmartTableControlsProps) => ReactNode;
+    boss?: any;
+    onVillainMessage?: (msg: string) => void;
     customTheme?: string;
+}
+
+// [NEW] Positions order for logic
+const POSITIONS: Position[] = ['SB', 'BB', 'UTG', 'MP', 'CO', 'BTN'];
+
+// [NEW] Helper to check if a seat is strictly between two positions clockwise
+function isSeatBetween(start: Position, end: Position, target: Position): boolean {
+    const sIdx = POSITIONS.indexOf(start);
+    const eIdx = POSITIONS.indexOf(end);
+    const tIdx = POSITIONS.indexOf(target);
+
+    if (sIdx === -1 || eIdx === -1 || tIdx === -1) return false;
+
+    // Calculate clockwise distance from Start
+    const distEnd = (eIdx - sIdx + 6) % 6;
+    const distTarget = (tIdx - sIdx + 6) % 6;
+
+    // If target is closer to start than end is, it's "between"
+    // e.g. Start=MP(3), End=BTN(5). CO(4) -> distEnd=2, distTarget=1. 1 < 2 -> True.
+    return distTarget > 0 && distTarget < distEnd;
 }
 
 export function SmartTable({
@@ -79,7 +98,7 @@ export function SmartTable({
     const showVillainAction = playbackStage >= 3;
     const isReady = playbackStage >= 4;
 
-    // --- 1. CHIPS LOGIC (The Core Fix) ---
+    // --- 1. CHIPS LOGIC ---
     const isPreflop = communityCards.length === 0;
     let baseHeroChips = heroChipsInFront;
     if (isPreflop && baseHeroChips === 0) {
@@ -88,7 +107,7 @@ export function SmartTable({
     }
     const displayHeroChips = baseHeroChips + addedHeroChips;
 
-    // --- 2. SEATS LOGIC ---
+    // --- 2. SEATS LOGIC (Updated with Visual Folding) ---
     const seatConfigs = calculateTableSeats(heroPosition as Position, villainPosition as Position);
     const seatsArray = seatConfigs.map((config) => {
         if (config.isHero) return undefined;
@@ -109,17 +128,28 @@ export function SmartTable({
                 betAmount: showVillainAction ? displayBet : 0,
                 positionLabel: config.positionLabel,
                 isFolded: false,
-                lastAction: showVillainAction ? villainAction : '',
+                // [FIX] Hide action bubble if status is "To Act"
+                lastAction: (showVillainAction && villainAction !== 'To Act') ? villainAction : '',
                 isDealer: config.isDealer,
                 isHero: false
             };
         }
-        const { isFolded, betAmount } = getFillerSeatStatus(
+
+        // Filler Logic
+        let { isFolded, betAmount } = getFillerSeatStatus(
             config.positionLabel,
             heroPosition as Position,
             currentScenario.street,
             currentScenario.actionHistory
         );
+
+        // [NEW] Visual Fold: If Hero is betting, fold everyone between Hero and Villain
+        if (addedHeroChips > 0) {
+            if (isSeatBetween(heroPosition as Position, villainPosition as Position, config.positionLabel)) {
+                isFolded = true;
+            }
+        }
+
         return {
             player: { name: `Player ${config.id}`, stack: 100, isActive: !isFolded },
             positionLabel: config.positionLabel,
@@ -131,7 +161,7 @@ export function SmartTable({
         };
     });
 
-    // --- 3. LIVE POT LOGIC (The Core Fix) ---
+    // --- 3. LIVE POT LOGIC ---
     const villainBet = seatsArray.find(s => s?.player.name === (boss ? boss.name : 'Villain'))?.betAmount || 0;
     const fillerBets = seatsArray.reduce((acc, s) => acc + (s && !s.player.name.includes('Villain') ? s.betAmount : 0), 0);
     const livePotSize = potSize + displayHeroChips + villainBet + fillerBets;
@@ -139,7 +169,7 @@ export function SmartTable({
     const seats = [undefined, ...seatsArray.slice(1)] as any;
 
 
-    // --- ACTION HANDLER (Unified) ---
+    // --- ACTION HANDLER ---
     const handleActionWithSound = (action: Action) => {
         if (action === 'Fold') triggerHaptic('light');
         if (action === 'Call') triggerHaptic('medium');
@@ -147,7 +177,6 @@ export function SmartTable({
 
         soundEngine.playClick();
 
-        // Animation Logic
         if (action === 'Raise') {
             const fallbackRaise = Math.max(villainChipsInFront * 3, 3);
             const targetAmount = currentScenario.defaultRaiseAmount || fallbackRaise;
@@ -163,7 +192,6 @@ export function SmartTable({
 
         const isCorrect = action === currentScenario.correctAction;
 
-        // Visual Feedback Logic
         if (isCorrect) {
             triggerHaptic('success');
             if (action === 'Fold') playFoldEffect();
@@ -172,7 +200,6 @@ export function SmartTable({
             triggerHaptic('error');
             triggerShake('smart-table-container');
 
-            // Boss Reaction (Visual)
             if (boss) {
                 const reaction = bossLogic.getReaction(boss, action, { potSize });
                 if (reaction) {
@@ -183,7 +210,6 @@ export function SmartTable({
             }
         }
 
-        // Notify Parent
         onActionComplete(action, isCorrect);
     };
 
@@ -210,7 +236,6 @@ export function SmartTable({
                         </div>
                     )}
 
-                    {/* Villain Speech Bubble */}
                     <AnimatePresence>
                         {activeMsg && showVillainAction && (
                             <motion.div initial={{ opacity: 0, y: 10, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-white px-4 py-2 rounded-2xl rounded-bl-none shadow-xl border-2 border-brand-primary/20 max-w-[200px]">
@@ -239,7 +264,7 @@ export function SmartTable({
                 ))}
             </div>
 
-            {/* 3. RENDER PROPS FOR CONTROLS (Buttons) */}
+            {/* 3. RENDER PROPS FOR CONTROLS */}
             {renderControls({
                 handleAction: handleActionWithSound,
                 isReady,
