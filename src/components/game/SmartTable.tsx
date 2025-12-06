@@ -201,9 +201,9 @@ export function SmartTable({
                         themeClass={customTheme || (boss ? boss.colorTheme : undefined)}
                     />
 
-                    {/* Hero Chips - FIXED POSITION */}
+                    {/* Hero Chips - CENTERED & LOWERED */}
                     {displayHeroChips > 0 && (
-                        <div className="absolute bottom-[28%] left-1/2 -translate-x-1/2 z-40 pointer-events-none">
+                        <div className="absolute bottom-[22%] left-1/2 -translate-x-1/2 z-40 pointer-events-none">
                             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
                                 <BettingStack amount={displayHeroChips} position={1} />
                             </motion.div>
