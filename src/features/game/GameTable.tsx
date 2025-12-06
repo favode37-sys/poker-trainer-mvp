@@ -9,7 +9,7 @@ import { LevelCompleteModal } from '@/components/ui/LevelCompleteModal';
 import { TableLayout } from '@/components/game/TableLayout';
 import { CoachModal } from '@/components/game/CoachModal';
 import { BossBriefing } from '@/components/game/BossBriefing';
-import { BettingStack } from '@/components/game/BettingStack'; // Ensure import
+import { BettingStack } from '@/components/game/BettingStack';
 import { useGameLogic } from '@/features/game/useGameLogic';
 import { soundEngine } from '@/lib/sound';
 import { calculateTableSeats, getFillerSeatStatus, type Position } from '@/lib/poker-engine';
@@ -113,7 +113,8 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         heroPosition = 'BTN',
         villainPosition = 'BB',
         heroChipsInFront = 0,
-        villainChipsInFront = 0
+        villainChipsInFront = 0,
+        blinds = { sb: 0.5, bb: 1 }
     } = currentScenario;
 
     const showHeroCards = playbackStage >= 1;
@@ -121,16 +122,16 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
     const showVillainAction = playbackStage >= 3;
     const isReady = playbackStage >= 4;
 
-    // --- 1. CALCULATE HERO CHIPS ---
+    // --- 1. CHIPS LOGIC ---
     const isPreflop = communityCards.length === 0;
     let baseHeroChips = heroChipsInFront;
     if (isPreflop && baseHeroChips === 0) {
-        if (heroPosition === 'SB') baseHeroChips = 0.5;
-        if (heroPosition === 'BB') baseHeroChips = 1.0;
+        if (heroPosition === 'SB') baseHeroChips = blinds.sb;
+        if (heroPosition === 'BB') baseHeroChips = blinds.bb;
     }
     const displayHeroChips = baseHeroChips + addedHeroChips;
 
-    // --- 2. CALCULATE SEATS & VILLAIN CHIPS ---
+    // --- 2. SEATS LOGIC ---
     const seatConfigs = calculateTableSeats(heroPosition as Position, villainPosition as Position);
 
     const seatsArray = seatConfigs.map((config) => {
@@ -139,8 +140,8 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
             const stack = 100 - villainChipsInFront;
             let displayBet = villainChipsInFront;
             if (currentScenario.actionHistory.length === 0 && displayBet === 0) {
-                if (config.positionLabel === 'SB') displayBet = 0.5;
-                if (config.positionLabel === 'BB') displayBet = 1.0;
+                if (config.positionLabel === 'SB') displayBet = blinds.sb;
+                if (config.positionLabel === 'BB') displayBet = blinds.bb;
             }
             return {
                 player: {
@@ -174,11 +175,9 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         };
     });
 
-    // --- 3. CALCULATE TOTAL LIVE POT ---
+    // --- 3. POT LOGIC ---
     const villainBet = seatsArray.find(s => s?.player.name === (boss ? boss.name : 'Villain'))?.betAmount || 0;
     const fillerBets = seatsArray.reduce((acc, s) => acc + (s && !s.player.name.includes('Villain') ? s.betAmount : 0), 0);
-
-    // Total Pot = Center Pot (Scenario) + Hero Live Bet + Villain Live Bet + Filler Bets
     const livePotSize = potSize + displayHeroChips + villainBet + fillerBets;
 
     const seats = [undefined, ...seatsArray.slice(1)] as any;
@@ -192,10 +191,11 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         soundEngine.playClick();
 
         if (action === 'Raise') {
-            const targetAmount = currentScenario.defaultRaiseAmount || (villainChipsInFront > 0 ? villainChipsInFront * 3 : 3);
-            const chipsToAdd = Math.max(0, targetAmount - baseHeroChips);
+            // [FIX] Improved fallback logic. Ensure we raise to AT LEAST 3bb if defaults are missing
+            const fallbackRaise = Math.max(villainChipsInFront * 3, 3);
+            const targetAmount = currentScenario.defaultRaiseAmount || fallbackRaise;
 
-            // [FIX] Force update with new value
+            const chipsToAdd = Math.max(0, targetAmount - baseHeroChips);
             setAddedHeroChips(chipsToAdd);
             soundEngine.playChips();
         }
@@ -306,10 +306,20 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                 </div>
             </div>
 
-            {/* Table */}
+            {/* Table Area */}
             <div className="flex-1 min-h-0 w-full flex items-center justify-center relative p-4">
                 <div className="relative w-full h-full max-w-md">
                     <TableLayout seats={seats} communityCards={showBoard ? communityCards : []} potSize={livePotSize} themeClass={tableTheme} />
+
+                    {/* [FIXED] Hero Chips Layer - Placed DIRECTLY on table layer, separate from card transforms */}
+                    {displayHeroChips > 0 && (
+                        <div className="absolute bottom-[28%] left-1/2 -translate-x-1/2 z-40 pointer-events-none">
+                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                                <BettingStack amount={displayHeroChips} position={1} />
+                            </motion.div>
+                        </div>
+                    )}
+
                     <AnimatePresence>
                         {villainMessage && showVillainAction && (
                             <motion.div initial={{ opacity: 0, y: 10, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-white px-4 py-2 rounded-2xl rounded-bl-none shadow-xl border-2 border-brand-primary/20 max-w-[200px]">
@@ -320,17 +330,10 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                 </div>
             </div>
 
-            {/* Hero Overlay */}
+            {/* Hero Cards Overlay */}
             <div className="absolute bottom-[110px] sm:bottom-[138px] left-1/2 -translate-x-1/2 sm:left-[30px] sm:translate-x-0 flex gap-2 z-30 origin-bottom scale-[0.65] sm:scale-[0.8] sm:origin-bottom-left pointer-events-none">
                 {seatConfigs[0].isDealer && (
                     <div className="absolute -top-6 -right-2 sm:-top-4 sm:-right-4 h-6 w-6 sm:h-8 sm:w-8 bg-yellow-400 border border-yellow-500 text-yellow-950 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold z-40 shadow-md">D</div>
-                )}
-
-                {/* [FIXED] Use BettingStack and ensure it is visible */}
-                {displayHeroChips > 0 && (
-                    <div className="absolute -top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
-                        <BettingStack amount={displayHeroChips} position={1} />
-                    </div>
                 )}
 
                 {showHeroCards && heroCards.map((card, index) => (
