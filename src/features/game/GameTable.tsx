@@ -9,7 +9,7 @@ import { LevelCompleteModal } from '@/components/ui/LevelCompleteModal';
 import { TableLayout } from '@/components/game/TableLayout';
 import { CoachModal } from '@/components/game/CoachModal';
 import { BossBriefing } from '@/components/game/BossBriefing';
-import { BettingStack } from '@/components/game/BettingStack'; // [NEW] Import
+import { BettingStack } from '@/components/game/BettingStack'; // Ensure import
 import { useGameLogic } from '@/features/game/useGameLogic';
 import { soundEngine } from '@/lib/sound';
 import { calculateTableSeats, getFillerSeatStatus, type Position } from '@/lib/poker-engine';
@@ -194,8 +194,10 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         if (action === 'Raise') {
             const targetAmount = currentScenario.defaultRaiseAmount || (villainChipsInFront > 0 ? villainChipsInFront * 3 : 3);
             const chipsToAdd = Math.max(0, targetAmount - baseHeroChips);
+
+            // [FIX] Force update with new value
             setAddedHeroChips(chipsToAdd);
-            soundEngine.playChips(); // Play chip sound on raise
+            soundEngine.playChips();
         }
         if (action === 'Call') {
             const callAmount = Math.max(0, villainChipsInFront - baseHeroChips);
@@ -263,14 +265,14 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
         }
     };
 
-    const amountToCall = currentScenario.amountToCall ?? Math.max(0, villainChipsInFront - heroChipsInFront);
-    const isCheck = amountToCall === 0;
-    const raiseAmount = currentScenario.defaultRaiseAmount;
-
     const handleContinueJourney = () => {
         onLevelComplete(levelId);
         onBackToMap();
     };
+
+    const amountToCall = currentScenario.amountToCall ?? Math.max(0, villainChipsInFront - heroChipsInFront);
+    const isCheck = amountToCall === 0;
+    const raiseAmount = currentScenario.defaultRaiseAmount;
 
     return (
         <div id="game-table-container" className="absolute inset-0 bg-neutral-bg flex flex-col overflow-hidden font-sans">
@@ -307,7 +309,6 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
             {/* Table */}
             <div className="flex-1 min-h-0 w-full flex items-center justify-center relative p-4">
                 <div className="relative w-full h-full max-w-md">
-                    {/* [UPDATE] Passing livePotSize instead of static potSize */}
                     <TableLayout seats={seats} communityCards={showBoard ? communityCards : []} potSize={livePotSize} themeClass={tableTheme} />
                     <AnimatePresence>
                         {villainMessage && showVillainAction && (
@@ -325,9 +326,11 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                     <div className="absolute -top-6 -right-2 sm:-top-4 sm:-right-4 h-6 w-6 sm:h-8 sm:w-8 bg-yellow-400 border border-yellow-500 text-yellow-950 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold z-40 shadow-md">D</div>
                 )}
 
-                {/* [UPDATE] Use BettingStack for Hero chips animation */}
+                {/* [FIXED] Use BettingStack and ensure it is visible */}
                 {displayHeroChips > 0 && (
-                    <BettingStack amount={displayHeroChips} position={1} />
+                    <div className="absolute -top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
+                        <BettingStack amount={displayHeroChips} position={1} />
+                    </div>
                 )}
 
                 {showHeroCards && heroCards.map((card, index) => (

@@ -20,22 +20,22 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
     // Hero State
     const [heroPos, setHeroPos] = useState('BTN');
     const [heroStack] = useState(100);
-    const [heroStartChips, setHeroStartChips] = useState(0); // [CHANGED] Renamed for clarity
+    const [heroStartChips, setHeroStartChips] = useState(0);
 
     // Villains State
     const [villains, setVillains] = useState<Villain[]>([
-        { id: 'v1', position: 'BB', stack: 100, chipsInFront: 0, action: 'Check', cards: [] }
+        { id: 'v1', position: 'BB', stack: 100, chipsInFront: 0, action: 'Post BB', cards: [] }
     ]);
 
     // Game Context
     const [blinds] = useState({ sb: 0.5, bb: 1 });
-    const [potSize, setPotSize] = useState(0);
+    const [potSize, setPotSize] = useState(0); // [FIX] Default is 0 (Center pot empty at start)
     const [street, setStreet] = useState<'preflop' | 'flop' | 'turn' | 'river'>('preflop');
     const [actionHistory] = useState<string>('');
 
     // SOLUTION STATE
     const [correctAction, setCorrectAction] = useState<Action>('Fold');
-    const [targetRaiseAmount, setTargetRaiseAmount] = useState(0); // [NEW] Correct Raise To
+    const [targetRaiseAmount, setTargetRaiseAmount] = useState(0);
     const [explanation, setExplanation] = useState('');
 
     // UI State
@@ -102,16 +102,15 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
             heroCards: heroCards as [Card, Card],
             communityCards: boardCards,
             potSize,
-            // HERE IS THE FIX:
-            heroChipsInFront: heroStartChips,     // Visual start state
-            defaultRaiseAmount: targetRaiseAmount, // Target solution state
+            heroChipsInFront: heroStartChips,
+            defaultRaiseAmount: targetRaiseAmount,
 
             villainChipsInFront: villains[0]?.chipsInFront || 0,
             heroStack,
             villains,
             actionHistory: [...prevHistory, ...currentHistory],
             villainAction: villains[0]?.action || 'Check',
-            amountToCall: 0, // Engine calculates this
+            amountToCall: 0,
             correctAction,
             explanation_simple: explanation,
             explanation_deep: explanation
@@ -120,22 +119,17 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
 
     const handleSave = () => {
         if (heroCards.length !== 2) { setStatusMsg("Hero cards missing!"); return; }
-
         const finalStage = buildScenario();
-        // Just save single scenario for simplicity, or chain if needed
         scenarioStore.addBatch([finalStage]);
-
         setStatusMsg("✅ Scenario Saved!");
         setTimeout(() => setStatusMsg(''), 2000);
     };
 
-    // Helper to reset raised amount when changing action
     const handleActionChange = (action: Action) => {
         setCorrectAction(action);
         if (action !== 'Raise') setTargetRaiseAmount(0);
     };
 
-    // --- RENDER HELPERS ---
     const renderCardSlot = (target: 'hero' | 'board' | 'villain', index: number, card: Card | undefined, vIndex?: number) => (
         <button
             onClick={() => setActiveSlot({ target, index, villainIndex: vIndex })}
@@ -148,30 +142,8 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
         </button>
     );
 
-    const renderStagePreview = (stage: Scenario, i: number) => (
-        <section key={i} className="opacity-60 bg-slate-100 border border-slate-300 p-2 rounded-sm mb-2">
-            <div className="flex justify-between items-center mb-1 border-b border-slate-200 pb-1">
-                <span className="font-bold text-[10px] text-slate-500">STAGE {i + 1}: {(stage.street || 'preflop').toUpperCase()}</span>
-                <span className="text-[9px] text-slate-400">Pot: {stage.potSize}BB</span>
-            </div>
-            <div className="flex gap-2 items-center">
-                <div className="flex gap-0.5">
-                    {stage.communityCards.map((c, idx) => (
-                        <PlayingCard key={idx} card={c} size="sm" className="scale-50 origin-left -mr-4" />
-                    ))}
-                    {stage.communityCards.length === 0 && <span className="text-[9px] italic text-slate-400">No board</span>}
-                </div>
-                <div className="text-[10px] text-slate-600">
-                    <span className="font-bold">Correct:</span> {stage.correctAction}
-                    {stage.correctAction === 'Raise' && ` to ${stage.defaultRaiseAmount}`}
-                </div>
-            </div>
-        </section>
-    );
-
     return (
         <div className="min-h-screen bg-slate-100 p-4 font-mono text-sm text-slate-800 pb-32">
-            {/* Header */}
             <div className="flex items-center justify-between mb-4 bg-white p-3 border border-slate-300 rounded shadow-sm sticky top-0 z-20">
                 <button onClick={onBack} className="font-bold text-slate-600 hover:text-slate-900">← EXIT</button>
                 <span className="font-black text-slate-700 tracking-widest">SCENARIO BUILDER 2.0</span>
@@ -247,13 +219,21 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
                             </div>
                             <div>
                                 <label className="block text-[10px] text-slate-400 font-bold">LAST ACTION</label>
-                                <input
-                                    type="text"
+                                {/* [FIX] Dropdown instead of input */}
+                                <select
                                     value={villains[0].action}
                                     onChange={e => updateVillain(0, 'action', e.target.value)}
-                                    className="w-full border rounded p-1 bg-slate-50"
-                                    placeholder="e.g. Check"
-                                />
+                                    className="w-full border rounded p-1 bg-slate-50 text-xs"
+                                >
+                                    <option>Post SB</option>
+                                    <option>Post BB</option>
+                                    <option>Check</option>
+                                    <option>Bet</option>
+                                    <option>Raise</option>
+                                    <option>Call</option>
+                                    <option>All-in</option>
+                                    <option>Fold</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -289,7 +269,7 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
                         </div>
                     </div>
 
-                    <div className="flex gap-1 justify-center bg-slate-50 p-2 border border-slate-200 rounded-sm min-h-[60px] items-center mt-2">
+                    <div className="flex gap-2 h-20 items-center justify-center bg-slate-50 rounded border border-slate-200">
                         {(() => {
                             const count = street === 'preflop' ? 0 : street === 'flop' ? 3 : street === 'turn' ? 4 : 5;
                             if (count === 0) return <span className="text-slate-400 italic">Preflop - No Cards</span>;
@@ -297,9 +277,6 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
                         })()}
                     </div>
                 </section>
-
-                {/* PREVIOUS STAGES LIST */}
-                {stages.map(renderStagePreview)}
 
                 {/* 3. THE SOLUTION */}
                 <section className="bg-slate-800 p-4 rounded shadow-lg text-white border border-slate-700">
@@ -322,7 +299,6 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
                         ))}
                     </div>
 
-                    {/* CONDITIONAL INPUT FOR RAISE */}
                     {correctAction === 'Raise' && (
                         <div className="bg-yellow-500/10 border border-yellow-500/30 p-3 rounded mb-4 animate-in fade-in slide-in-from-top-2">
                             <label className="block text-xs font-bold text-yellow-400 mb-1">RAISE TO (TOTAL)</label>
@@ -353,7 +329,6 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 mt-3">
-                        {/* Removed Next Action to simplify MVP */}
                         <button
                             onClick={handleSave}
                             className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-sm text-sm uppercase tracking-wide col-span-2"
@@ -365,7 +340,6 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
 
             </div>
 
-            {/* MODAL */}
             {activeSlot && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
                     <div className="bg-white p-4 rounded-lg shadow-2xl max-w-lg w-full">
