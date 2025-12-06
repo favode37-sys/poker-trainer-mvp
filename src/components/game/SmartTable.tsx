@@ -25,23 +25,15 @@ interface SmartTableProps {
     customTheme?: string;
 }
 
-// [NEW] Positions order for logic
 const POSITIONS: Position[] = ['SB', 'BB', 'UTG', 'MP', 'CO', 'BTN'];
 
-// [NEW] Helper to check if a seat is strictly between two positions clockwise
 function isSeatBetween(start: Position, end: Position, target: Position): boolean {
     const sIdx = POSITIONS.indexOf(start);
     const eIdx = POSITIONS.indexOf(end);
     const tIdx = POSITIONS.indexOf(target);
-
     if (sIdx === -1 || eIdx === -1 || tIdx === -1) return false;
-
-    // Calculate clockwise distance from Start
     const distEnd = (eIdx - sIdx + 6) % 6;
     const distTarget = (tIdx - sIdx + 6) % 6;
-
-    // If target is closer to start than end is, it's "between"
-    // e.g. Start=MP(3), End=BTN(5). CO(4) -> distEnd=2, distTarget=1. 1 < 2 -> True.
     return distTarget > 0 && distTarget < distEnd;
 }
 
@@ -57,7 +49,6 @@ export function SmartTable({
     const [playbackStage, setPlaybackStage] = useState<0 | 1 | 2 | 3 | 4>(0);
     const [internalVillainMsg, setInternalVillainMsg] = useState("");
 
-    // --- PLAYBACK ANIMATION ---
     useEffect(() => {
         setPlaybackStage(0);
         setAddedHeroChips(0);
@@ -80,7 +71,6 @@ export function SmartTable({
         return () => timeouts.forEach(clearTimeout);
     }, [currentScenario.id]);
 
-    // --- DATA PREP ---
     const {
         villainAction,
         heroCards,
@@ -98,26 +88,31 @@ export function SmartTable({
     const showVillainAction = playbackStage >= 3;
     const isReady = playbackStage >= 4;
 
-    // --- 1. CHIPS LOGIC ---
+    // --- 1. HERO CHIPS ---
     const isPreflop = communityCards.length === 0;
     let baseHeroChips = heroChipsInFront;
+
+    // [FIX] Force Blinds for Hero if Preflop and 0 chips (regardless of history)
     if (isPreflop && baseHeroChips === 0) {
         if (heroPosition === 'SB') baseHeroChips = blinds.sb;
         if (heroPosition === 'BB') baseHeroChips = blinds.bb;
     }
     const displayHeroChips = baseHeroChips + addedHeroChips;
 
-    // --- 2. SEATS LOGIC (Updated with Visual Folding) ---
+    // --- 2. SEATS LOGIC ---
     const seatConfigs = calculateTableSeats(heroPosition as Position, villainPosition as Position);
     const seatsArray = seatConfigs.map((config) => {
-        if (config.isHero) return undefined;
+        // --- VILLAIN LOGIC ---
         if (config.isVillain) {
             const stack = 100 - villainChipsInFront;
             let displayBet = villainChipsInFront;
-            if (currentScenario.actionHistory.length === 0 && displayBet === 0) {
+
+            // [FIX] Force Blinds for Villain if Preflop and 0 chips (regardless of history)
+            if (isPreflop && displayBet === 0) {
                 if (config.positionLabel === 'SB') displayBet = blinds.sb;
                 if (config.positionLabel === 'BB') displayBet = blinds.bb;
             }
+
             return {
                 player: {
                     name: boss ? boss.name : 'Villain',
@@ -128,14 +123,13 @@ export function SmartTable({
                 betAmount: showVillainAction ? displayBet : 0,
                 positionLabel: config.positionLabel,
                 isFolded: false,
-                // [FIX] Hide action bubble if status is "To Act"
                 lastAction: (showVillainAction && villainAction !== 'To Act') ? villainAction : '',
                 isDealer: config.isDealer,
                 isHero: false
             };
         }
 
-        // Filler Logic
+        // --- FILLER LOGIC ---
         let { isFolded, betAmount } = getFillerSeatStatus(
             config.positionLabel,
             heroPosition as Position,
@@ -143,7 +137,13 @@ export function SmartTable({
             currentScenario.actionHistory
         );
 
-        // [NEW] Visual Fold: If Hero is betting, fold everyone between Hero and Villain
+        // [FIX] Force Blinds for Fillers if Preflop, not folded, and 0 bet
+        if (isPreflop && !isFolded && betAmount === 0) {
+            if (config.positionLabel === 'SB') betAmount = blinds.sb;
+            if (config.positionLabel === 'BB') betAmount = blinds.bb;
+        }
+
+        // Visual Fold Logic
         if (addedHeroChips > 0) {
             if (isSeatBetween(heroPosition as Position, villainPosition as Position, config.positionLabel)) {
                 isFolded = true;
@@ -161,15 +161,12 @@ export function SmartTable({
         };
     });
 
-    // --- 3. LIVE POT LOGIC ---
     const villainBet = seatsArray.find(s => s?.player.name === (boss ? boss.name : 'Villain'))?.betAmount || 0;
     const fillerBets = seatsArray.reduce((acc, s) => acc + (s && !s.player.name.includes('Villain') ? s.betAmount : 0), 0);
     const livePotSize = potSize + displayHeroChips + villainBet + fillerBets;
 
     const seats = [undefined, ...seatsArray.slice(1)] as any;
 
-
-    // --- ACTION HANDLER ---
     const handleActionWithSound = (action: Action) => {
         if (action === 'Fold') triggerHaptic('light');
         if (action === 'Call') triggerHaptic('medium');
@@ -217,7 +214,6 @@ export function SmartTable({
 
     return (
         <div id="smart-table-container" className="relative w-full h-full">
-            {/* 1. TABLE AREA */}
             <div className="flex-1 min-h-0 w-full h-full flex items-center justify-center relative p-4">
                 <div className="relative w-full h-full max-w-md">
                     <TableLayout
@@ -246,7 +242,6 @@ export function SmartTable({
                 </div>
             </div>
 
-            {/* 2. HERO CARDS OVERLAY */}
             <div className="absolute bottom-[110px] sm:bottom-[138px] left-1/2 -translate-x-1/2 sm:left-[30px] sm:translate-x-0 flex gap-2 z-30 origin-bottom scale-[0.65] sm:scale-[0.8] sm:origin-bottom-left pointer-events-none">
                 {seatConfigs[0].isDealer && (
                     <div className="absolute -top-6 -right-2 sm:-top-4 sm:-right-4 h-6 w-6 sm:h-8 sm:w-8 bg-yellow-400 border border-yellow-500 text-yellow-950 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold z-40 shadow-md">D</div>
@@ -264,7 +259,6 @@ export function SmartTable({
                 ))}
             </div>
 
-            {/* 3. RENDER PROPS FOR CONTROLS */}
             {renderControls({
                 handleAction: handleActionWithSound,
                 isReady,

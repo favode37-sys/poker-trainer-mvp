@@ -293,7 +293,22 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
                                 </div>
                                 <div className="mt-1 flex gap-1">
                                     <span className="text-[10px] text-slate-400 self-center">Status:</span>
-                                    <input value={v.action} onChange={e => updateVillain(idx, 'action', e.target.value)} className="border p-1 rounded text-xs flex-1" />
+                                    {/* [FIX] Changed input to select for better UX */}
+                                    <select
+                                        value={v.action}
+                                        onChange={e => updateVillain(idx, 'action', e.target.value)}
+                                        className="border p-1 rounded text-xs flex-1 bg-slate-50 outline-none"
+                                    >
+                                        <option>To Act</option>
+                                        <option>Post SB</option>
+                                        <option>Post BB</option>
+                                        <option>Check</option>
+                                        <option>Bet</option>
+                                        <option>Call</option>
+                                        <option>Raise</option>
+                                        <option>All-in</option>
+                                        <option>Fold</option>
+                                    </select>
                                 </div>
                             </div>
                         ))}
