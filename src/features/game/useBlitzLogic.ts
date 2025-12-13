@@ -54,6 +54,9 @@ export function useBlitzLogic(onGameOver: (score: number, streak: number) => voi
     const [maxStreak, setMaxStreak] = useState(0);
     const [isActive, setIsActive] = useState(true);
 
+    // Unique key for each scenario load - forces SmartTable to reset even if same scenario ID
+    const [scenarioKey, setScenarioKey] = useState(0);
+
     const [currentScenario, setCurrentScenario] = useState<Scenario | null>(() => {
         // Initial state: Streak is 0, so get easiest scenarios
         const source = getScenariosByDifficulty(0);
@@ -93,16 +96,23 @@ export function useBlitzLogic(onGameOver: (score: number, streak: number) => voi
         }
         const randomIndex = Math.floor(Math.random() * source.length);
         setCurrentScenario(source[randomIndex]);
+        setScenarioKey(k => k + 1); // Increment key to force SmartTable reset
     }, []);
 
     const getAllAvailableScenarios = () => {
         return scenarioStore.getAll();
     };
 
-    const handleAction = (action: Action) => {
+    /**
+     * Handle player action in Blitz mode
+     * @param action - The action taken (Fold/Call/Raise)
+     * @param isCorrectOverride - Optional override from SmartTable for multi-decision scenarios
+     */
+    const handleAction = (action: Action, isCorrectOverride?: boolean) => {
         if (!isActive || !currentScenario) return;
 
-        const isCorrect = action === currentScenario.correctAction;
+        // Use override if provided (from SmartTable for multi-decision), else calculate locally
+        const isCorrect = isCorrectOverride ?? (action === currentScenario.correctAction);
 
         if (isCorrect) {
             // Success Logic
@@ -151,6 +161,7 @@ export function useBlitzLogic(onGameOver: (score: number, streak: number) => voi
         streak,
         multiplier,
         currentScenario,
+        scenarioKey,
         handleAction,
         isActive
     };

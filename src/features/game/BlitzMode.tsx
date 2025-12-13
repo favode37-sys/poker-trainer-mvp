@@ -23,7 +23,8 @@ export function BlitzMode({ onBack, onQuestEvent }: BlitzModeProps) {
         score,
         streak,
         timeLeft,
-        isActive
+        isActive,
+        scenarioKey
     } = useBlitzLogic((finalScore: number, _finalStreak: number) => {
         analytics.levelComplete('blitz_mode', finalScore);
     });
@@ -31,10 +32,12 @@ export function BlitzMode({ onBack, onQuestEvent }: BlitzModeProps) {
     const isGameOver = !isActive && timeLeft === 0;
 
     // Wrapper to add quest events and feedback
-    const handleAction = (action: Action) => {
+    // Note: isCorrect is passed from SmartTable for multi-decision scenarios
+    const handleAction = (action: Action, isCorrectFromTable?: boolean) => {
         if (!currentScenario) return;
 
-        const isCorrect = action === currentScenario.correctAction;
+        // Use isCorrect from SmartTable if provided, otherwise calculate
+        const isCorrect = isCorrectFromTable ?? (action === currentScenario.correctAction);
 
         setFeedbackState(isCorrect ? 'success' : 'error');
         setTimeout(() => setFeedbackState(null), 500);
@@ -42,10 +45,10 @@ export function BlitzMode({ onBack, onQuestEvent }: BlitzModeProps) {
         onQuestEvent('play_hands', 1);
         if (isCorrect) {
             onQuestEvent('win_hands', 1);
-            if (currentScenario.correctAction === 'Fold') onQuestEvent('correct_folds', 1);
+            if (action === 'Fold') onQuestEvent('correct_folds', 1);
         }
 
-        blitzHandleAction(action);
+        blitzHandleAction(action, isCorrect);
     };
 
     const [coachExplanation] = useState<string>('');
@@ -124,8 +127,9 @@ export function BlitzMode({ onBack, onQuestEvent }: BlitzModeProps) {
             {/* TABLE AREA (Clean Light Background, Default Green Felt) */}
             <div className="flex-1 min-h-0 w-full relative">
                 <SmartTable
+                    key={scenarioKey}
                     currentScenario={currentScenario}
-                    onActionComplete={(action) => handleAction(action)}
+                    onActionComplete={(action, isCorrect) => handleAction(action, isCorrect)}
                     renderControls={({ handleAction: onAction, isReady, amountToCall }: SmartTableControlsProps) => {
                         const isCheck = amountToCall === 0;
                         return (

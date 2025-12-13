@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { PlayingCard } from '@/components/ui/PlayingCard';
 import { CardMatrix } from '@/components/ui/CardMatrix';
-import { type Card, type Scenario, type Action } from '@/lib/types';
+import { type Card, type Scenario, type Action, type Decision } from '@/lib/types';
 import { createDeck, drawCards } from '@/lib/poker-engine';
 import { scenarioStore } from '@/lib/scenario-store';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, Plus, X, ArrowRight, Save } from 'lucide-react';
+import { ArrowLeft, Plus, X, ArrowRight, Save, Copy } from 'lucide-react';
 
 interface ScenarioBuilderProps {
     onBack: () => void;
@@ -14,6 +14,9 @@ interface ScenarioBuilderProps {
 interface Villain {
     id: string;
     position: string;
+    stack?: number;
+    chipsInFront?: number;
+    action?: string;
 }
 
 interface ActionEntry {
@@ -23,16 +26,24 @@ interface ActionEntry {
     isCorrect?: boolean;
     whyYes?: string;
     whyNot?: string;
+    street?: Street;  // Track which street this action belongs to
 }
 
 type Street = 'preflop' | 'flop' | 'turn' | 'river';
 
 export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
+    // --- ACCUMULATED HAND STAGES (for Seamless Deal) ---
+    const [stages, setStages] = useState<Scenario[]>([]);
+
+    // --- CURRENT EDITOR STATE ---
     const [heroCards, setHeroCards] = useState<Card[]>([]);
     const [heroPos, setHeroPos] = useState('BTN');
-    const [villains, setVillains] = useState<Villain[]>([{ id: 'v1', position: 'BB' }]);
+    const [villains, setVillains] = useState<Villain[]>([{ id: 'v1', position: 'BB', chipsInFront: 0 }]);
     const [street, setStreet] = useState<Street>('preflop');
     const [boardCards, setBoardCards] = useState<Card[]>([]);
+    const [potSize, setPotSize] = useState(0);
+
+    // Modals
     const [isCardModalOpen, setIsCardModalOpen] = useState(false);
     const [activeCardIndex, setActiveCardIndex] = useState<number | null>(null);
     const [cardTarget, setCardTarget] = useState<'hero' | 'board'>('hero');
@@ -43,52 +54,51 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
     const [currentAction, setCurrentAction] = useState('Check');
     const [currentAmount, setCurrentAmount] = useState(0);
 
-    // Hero Explanation (shows when Hero is selected)
+    // Hero Explanation
     const [whyYes, setWhyYes] = useState('');
     const [whyNot, setWhyNot] = useState('');
 
     // Save status
     const [saveMessage, setSaveMessage] = useState('');
 
-    // Find the hero's correct action from history
-    const getHeroCorrectAction = (): { action: Action; amount?: number } | null => {
-        const heroAction = actionHistory.find(a => a.actor === 'hero' && a.isCorrect);
-        if (!heroAction) return null;
-        return {
-            action: heroAction.action as Action,
-            amount: heroAction.amount
-        };
-    };
+    // --- LOGIC: BUILD CURRENT SCENARIO OBJECT ---
+    const buildCurrentScenario = (): Scenario | null => {
+        if (heroCards.length !== 2) return null;
 
-    // Save hand to database
-    const handleSaveHand = () => {
-        // Validation
-        if (heroCards.length !== 2) {
-            setSaveMessage('❌ Выберите карты Hero');
-            setTimeout(() => setSaveMessage(''), 2000);
-            return;
-        }
-
-        const heroCorrect = getHeroCorrectAction();
-        if (!heroCorrect) {
-            setSaveMessage('❌ Добавьте правильное действие Hero');
-            setTimeout(() => setSaveMessage(''), 2000);
-            return;
-        }
-
-        // Build scenario
         const heroActionEntry = actionHistory.find(a => a.actor === 'hero' && a.isCorrect);
+        if (!heroActionEntry) return null;
 
-        // Calculate pot from action history
-        const potSize = actionHistory.reduce((sum, a) => sum + (a.amount || 0), 0);
+        // Find the index of Hero's correct action
+        const heroCorrectIndex = actionHistory.findIndex(a => a.actor === 'hero' && a.isCorrect);
 
-        // Get villain info
-        const mainVillain = villains[0];
-        const villainAction = actionHistory.find(a => a.actor === mainVillain?.id);
+        // Calculate Hero's chips in front BEFORE the correct action (previous bets/raises)
+        const heroPreviousActions = actionHistory.slice(0, heroCorrectIndex).filter(a => a.actor === 'hero');
+        const heroChipsFromPrevious = heroPreviousActions.reduce((sum, a) => sum + (a.amount || 0), 0);
 
-        const scenario: Scenario = {
-            id: `manual_${Date.now()}`,
-            title: `Custom Hand - ${heroPos} vs ${mainVillain?.position || 'BB'}`,
+        // Get villain's last action BEFORE hero's correct action
+        const actionsBeforeHeroDecision = actionHistory.slice(0, heroCorrectIndex);
+
+        const engineVillains = villains.map(v => {
+            const lastVAction = [...actionsBeforeHeroDecision].reverse().find(a => a.actor === v.id);
+            return {
+                id: v.id,
+                position: v.position,
+                stack: 100,
+                chipsInFront: (lastVAction?.amount) || 0,
+                action: (lastVAction?.action) || 'Check',
+                cards: [] as Card[]
+            };
+        });
+
+        const mainVillain = engineVillains[0];
+
+        // Calculate amount to call
+        const villainBet = mainVillain?.chipsInFront || 0;
+        const amountToCall = Math.max(0, villainBet - heroChipsFromPrevious);
+
+        return {
+            id: `manual_${Date.now()}_${stages.length}`,
+            title: `Custom Hand - ${street.toUpperCase()}`,
             levelId: 'blitz',
             street,
             blinds: { sb: 0.5, bb: 1 },
@@ -96,408 +106,408 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
             villainPosition: mainVillain?.position || 'BB',
             heroCards: heroCards as [Card, Card],
             communityCards: [...boardCards],
-            potSize: potSize || 2.5,
-            heroChipsInFront: 0,
-            villainChipsInFront: villainAction?.amount || 0,
+            potSize: potSize || 1.5,
+            heroChipsInFront: heroChipsFromPrevious,  // Hero's previous bets before decision
+            villainChipsInFront: villainBet,
+            heroStack: 100 - heroChipsFromPrevious,
+            villains: engineVillains,
+            villainAction: (mainVillain?.action || 'Check') as Action,
+            amountToCall: amountToCall,
+            defaultRaiseAmount: heroActionEntry.amount || 0,
+            correctAction: heroActionEntry.action as Action,
+            explanation_simple: heroActionEntry.whyYes || '',
+            explanation_deep: heroActionEntry.whyNot || '',
+            actionHistory: actionHistory.map(a => {
+                const name = a.actor === 'hero' ? 'Hero' : villains.find(v => v.id === a.actor)?.position || 'V';
+                return `${name} ${a.action} ${a.amount || ''}`.trim();
+            })
+        };
+    };
+
+    // --- ACTIONS ---
+    const handleSaveHand = () => {
+        if (heroCards.length !== 2) {
+            setSaveMessage('❌ Add Hero Cards!');
+            setTimeout(() => setSaveMessage(''), 2000);
+            return;
+        }
+
+        if (stages.length === 0) {
+            setSaveMessage('❌ Add at least one Hero action!');
+            setTimeout(() => setSaveMessage(''), 2000);
+            return;
+        }
+
+        // Build decisions array from captured stages
+        const decisions: Decision[] = stages.map((stage, i) => ({
+            heroChipsInFront: stage.heroChipsInFront || 0,
+            villainChipsInFront: stage.villainChipsInFront || 0,
+            villainAction: stage.villainAction || 'Check',
+            amountToCall: stage.amountToCall,
+            correctAction: stage.correctAction,
+            defaultRaiseAmount: stage.defaultRaiseAmount,
+            explanation_simple: stage.explanation_simple,
+            explanation_deep: stage.explanation_deep,
+            actionLabel: stage.actionHistory[stage.actionHistory.length - 1] || `Decision ${i + 1}`
+        }));
+
+        // Use the last stage as the base for the scenario
+        const lastStage = stages[stages.length - 1];
+        const mainVillain = villains[0];
+
+        const scenario: Scenario = {
+            id: `hand_${Date.now()}`,
+            title: `Custom Hand - ${decisions.length} decisions`,
+            levelId: 'blitz',
+            street,
+            blinds: { sb: 0.5, bb: 1 },
+            heroPosition: heroPos,
+            villainPosition: mainVillain?.position || 'BB',
+            heroCards: heroCards as [Card, Card],
+            communityCards: [...boardCards],
+            potSize: potSize || 1.5,
+            heroChipsInFront: decisions[0]?.heroChipsInFront || 0,
+            villainChipsInFront: decisions[0]?.villainChipsInFront || 0,
             heroStack: 100,
-            villainAction: (villainAction?.action || 'Check') as Action,
-            amountToCall: villainAction?.amount || 0,
-            defaultRaiseAmount: heroCorrect.amount || 0,
-            correctAction: heroCorrect.action,
-            explanation_simple: heroActionEntry?.whyYes || '',
-            explanation_deep: heroActionEntry?.whyNot || '',
-            actionHistory: actionHistory.map(a => `${a.actor === 'hero' ? 'Hero' : 'V'} ${a.action}${a.amount ? ' ' + a.amount : ''}`)
+            villains: villains.map(v => ({
+                id: v.id,
+                position: v.position,
+                stack: 100,
+                chipsInFront: 0,
+                action: 'Check',
+                cards: [] as Card[]
+            })),
+            villainAction: decisions[0]?.villainAction || 'Check',
+            amountToCall: decisions[0]?.amountToCall || 0,
+            defaultRaiseAmount: decisions[0]?.defaultRaiseAmount || 0,
+            correctAction: decisions[0]?.correctAction || 'Check',
+            explanation_simple: decisions[0]?.explanation_simple || '',
+            explanation_deep: decisions[0]?.explanation_deep || '',
+            actionHistory: lastStage?.actionHistory || [],
+            decisions: decisions  // NEW: All decision points in one scenario!
         };
 
-        // Save to store
         scenarioStore.addBatch([scenario]);
 
-        setSaveMessage('✅ Раздача сохранена в базу Blitz!');
-        setTimeout(() => setSaveMessage(''), 3000);
-
-        // Reset form
-        setHeroCards([]);
-        setBoardCards([]);
-        setActionHistory([]);
-        setStreet('preflop');
-    };
-
-    const handleRandomizeHero = () => {
-        const deck = createDeck();
-        const { drawn } = drawCards(deck, 2, []);
-        setHeroCards(drawn);
-    };
-
-    const handleRandomizeBoard = () => {
-        const count = street === 'flop' ? 3 : street === 'turn' ? 4 : street === 'river' ? 5 : 0;
-        if (count === 0) return;
-        const deck = createDeck();
-        const { drawn } = drawCards(deck, count, heroCards);
-        setBoardCards(drawn);
-    };
-
-    const handleCardClick = (target: 'hero' | 'board', index: number) => {
-        setCardTarget(target);
-        setActiveCardIndex(index);
-        setIsCardModalOpen(true);
-    };
-
-    const handleCardSelect = (card: Card) => {
-        if (activeCardIndex === null) return;
-        if (cardTarget === 'hero') {
-            const newCards = [...heroCards];
-            newCards[activeCardIndex] = card;
-            setHeroCards(newCards);
-        } else {
-            const newCards = [...boardCards];
-            newCards[activeCardIndex] = card;
-            setBoardCards(newCards);
-        }
-        setIsCardModalOpen(false);
-        setActiveCardIndex(null);
-    };
-
-    const addVillain = () => {
-        if (villains.length >= 5) return;
-        setVillains([...villains, { id: `v${Date.now()}`, position: 'UTG' }]);
-    };
-
-    const removeVillain = (id: string) => {
-        setVillains(villains.filter(v => v.id !== id));
-    };
-
-    const updateVillainPos = (id: string, pos: string) => {
-        setVillains(villains.map(v => v.id === id ? { ...v, position: pos } : v));
-    };
-
-    const handleStreetChange = (newStreet: Street) => {
-        setStreet(newStreet);
-        if (newStreet === 'preflop') {
+        setSaveMessage(`✅ Hand Saved! (${decisions.length} decisions)`);
+        setTimeout(() => {
+            setSaveMessage('');
+            setStages([]);
+            setStreet('preflop');
             setBoardCards([]);
-        }
+            setHeroCards([]);
+            setActionHistory([]);
+            setPotSize(0);
+        }, 2000);
     };
 
     const handleNextStreet = () => {
-        const streetOrder: Street[] = ['preflop', 'flop', 'turn', 'river'];
-        const currentIndex = streetOrder.indexOf(street);
-        if (currentIndex >= streetOrder.length - 1) return; // Already river
+        const currentStage = buildCurrentScenario();
+        if (!currentStage) {
+            setSaveMessage('❌ Setup correct action before moving to next street!');
+            setTimeout(() => setSaveMessage(''), 2000);
+            return;
+        }
 
-        const nextStreet = streetOrder[currentIndex + 1];
+        setStages([...stages, currentStage]);
+
+        const newPot = potSize + (currentStage.heroChipsInFront || 0) +
+            (currentStage.villains?.reduce((sum, v) => sum + (v.chipsInFront || 0), 0) || 0);
+
+        setPotSize(newPot);
+
+        const streetOrder: Street[] = ['preflop', 'flop', 'turn', 'river'];
+        const nextIdx = streetOrder.indexOf(street) + 1;
+        if (nextIdx >= streetOrder.length) return;
+        const nextStreet = streetOrder[nextIdx];
+
         setStreet(nextStreet);
 
-        // Deal new cards for the street
         const deck = createDeck();
-        const usedCards = [...heroCards, ...boardCards];
+        const used = [...heroCards, ...boardCards];
+        const count = nextStreet === 'flop' ? 3 : 1;
+        const { drawn } = drawCards(deck, count, used);
+        setBoardCards([...boardCards, ...drawn]);
 
-        if (nextStreet === 'flop') {
-            const { drawn } = drawCards(deck, 3, usedCards);
-            setBoardCards(drawn);
+        setActionHistory([]);
+        setWhyYes('');
+        setWhyNot('');
+    };
+
+    // --- BOILERPLATE HANDLERS ---
+    const handleRandomizeHero = () => {
+        const { drawn } = drawCards(createDeck(), 2, []);
+        setHeroCards(drawn);
+    };
+    const handleRandomizeBoard = () => {
+        const count = street === 'flop' ? 3 : street === 'turn' ? 4 : street === 'river' ? 5 : 0;
+        if (count === 0) return;
+        setBoardCards(drawCards(createDeck(), count, heroCards).drawn);
+    };
+    const handleCardClick = (target: 'hero' | 'board', index: number) => {
+        setCardTarget(target); setActiveCardIndex(index); setIsCardModalOpen(true);
+    };
+    const handleCardSelect = (card: Card) => {
+        if (activeCardIndex === null) return;
+        if (cardTarget === 'hero') {
+            const n = [...heroCards]; n[activeCardIndex] = card; setHeroCards(n);
         } else {
-            // Turn or River - add 1 card
-            const { drawn } = drawCards(deck, 1, usedCards);
-            setBoardCards([...boardCards, ...drawn]);
+            const n = [...boardCards]; n[activeCardIndex] = card; setBoardCards(n);
         }
+        setIsCardModalOpen(false); setActiveCardIndex(null);
     };
-
-    const getBoardSlotCount = () => {
-        if (street === 'flop') return 3;
-        if (street === 'turn') return 4;
-        if (street === 'river') return 5;
-        return 0;
-    };
-
+    const addVillain = () => { if (villains.length < 5) setVillains([...villains, { id: `v${Date.now()}`, position: 'UTG' }]); };
+    const removeVillain = (id: string) => setVillains(villains.filter(v => v.id !== id));
+    const updateVillainPos = (id: string, pos: string) => setVillains(villains.map(v => v.id === id ? { ...v, position: pos } : v));
+    const handleStreetChange = (s: Street) => { setStreet(s); if (s === 'preflop') setBoardCards([]); };
+    const getBoardSlotCount = () => street === 'flop' ? 3 : street === 'turn' ? 4 : street === 'river' ? 5 : 0;
     const getActorLabel = (actor: string) => {
         if (actor === 'hero') return `Hero (${heroPos})`;
         const v = villains.find(v => v.id === actor);
         return v ? `V: ${v.position}` : actor;
     };
 
-    const isHeroSelected = currentActor === 'hero';
-
     const addActionToHistory = () => {
         const entry: ActionEntry = {
             actor: currentActor,
             action: currentAction,
+            street: street  // Save which street this action belongs to
         };
-        if (['Bet', 'Raise', 'All-in'].includes(currentAction)) {
-            entry.amount = currentAmount;
-        }
-        // If Hero action, mark as correct and save explanations
-        if (isHeroSelected) {
+        if (['Bet', 'Raise', 'All-in'].includes(currentAction)) entry.amount = currentAmount;
+
+        // Every Hero action is automatically marked as correct
+        if (currentActor === 'hero') {
             entry.isCorrect = true;
             entry.whyYes = whyYes;
             entry.whyNot = whyNot;
         }
-        setActionHistory([...actionHistory, entry]);
 
-        // Reset explanations after saving
-        if (isHeroSelected) {
+        // Add to history first
+        const newHistory = [...actionHistory, entry];
+        setActionHistory(newHistory);
+
+        // If this is a Hero action → auto-capture stage
+        if (currentActor === 'hero') {
+            // --- CUMULATIVE CHIPS CALCULATION ---
+            // Get chips already in pot from previous STREETS (stages on different streets)
+            const previousStreetsStages = stages.filter(s => s.street !== street);
+            const previousStreetsHeroChips = previousStreetsStages.reduce((sum, s) =>
+                sum + (s.heroChipsInFront || 0) + (s.defaultRaiseAmount || 0), 0
+            );
+            const previousStreetsVillainChips = previousStreetsStages.reduce((sum, s) =>
+                sum + (s.villainChipsInFront || 0), 0
+            );
+
+            // Find the index of THIS hero action (the one we just added)
+            const heroCorrectIndex = newHistory.length - 1;
+
+            // Filter only actions on CURRENT street before this hero action
+            const actionsThisStreetBeforeHero = newHistory
+                .slice(0, heroCorrectIndex)
+                .filter(a => a.street === street);
+
+            // Hero's chips on CURRENT street (before this action) 
+            const heroChipsThisStreet = actionsThisStreetBeforeHero
+                .filter(a => a.actor === 'hero')
+                .reduce((sum, a) => sum + (a.amount || 0), 0);
+
+            // Actions before this Hero decision (on current street only)
+
+            const engineVillains = villains.map(v => {
+                const lastVAction = [...actionsThisStreetBeforeHero].reverse().find(a => a.actor === v.id);
+                return {
+                    id: v.id,
+                    position: v.position,
+                    stack: 100,
+                    chipsInFront: (lastVAction?.amount) || 0,
+                    action: (lastVAction?.action) || 'Check',
+                    cards: [] as Card[]
+                };
+            });
+
+            const mainVillain = engineVillains[0];
+
+            // For this stage, we want to show state BEFORE Hero's action:
+            // - Villain's chips from their last action
+            // - Hero's chips from their previous actions on this street
+            const villainBet = mainVillain?.chipsInFront || 0;
+            const amountToCall = Math.max(0, villainBet - heroChipsThisStreet);
+
+            const stage: Scenario = {
+                id: `manual_${Date.now()}_${stages.length}`,
+                title: `Custom Hand - Stage ${stages.length + 1}`,
+                levelId: 'blitz',
+                street,
+                blinds: { sb: 0.5, bb: 1 },
+                heroPosition: heroPos,
+                villainPosition: mainVillain?.position || 'BB',
+                heroCards: heroCards as [Card, Card],
+                communityCards: [...boardCards],
+                potSize: (potSize || 1.5) + previousStreetsHeroChips + previousStreetsVillainChips,
+                heroChipsInFront: heroChipsThisStreet,
+                villainChipsInFront: villainBet,
+                heroStack: 100 - previousStreetsHeroChips - heroChipsThisStreet,
+                villains: engineVillains,
+                villainAction: (mainVillain?.action || 'Check') as Action,
+                amountToCall: amountToCall,
+                defaultRaiseAmount: entry.amount || 0,
+                correctAction: entry.action as Action,
+                explanation_simple: entry.whyYes || '',
+                explanation_deep: entry.whyNot || '',
+                actionHistory: newHistory.map(a => {
+                    const name = a.actor === 'hero' ? 'Hero' : villains.find(v => v.id === a.actor)?.position || 'V';
+                    return `${name} ${a.action} ${a.amount || ''}`.trim();
+                })
+            };
+
+            setStages([...stages, stage]);
+            setSaveMessage(`✅ Stage ${stages.length + 1} captured!`);
+            setTimeout(() => setSaveMessage(''), 1500);
+
+            // Reset explanation fields
             setWhyYes('');
             setWhyNot('');
         }
     };
 
+    const isHeroSelected = currentActor === 'hero';
     const needsAmount = ['Bet', 'Raise', 'All-in'].includes(currentAction);
-    const canNextStreet = street !== 'river';
 
     return (
         <div className="min-h-screen bg-slate-100 p-4 font-mono text-xs">
-
-            {/* BACK */}
             <button onClick={onBack} className="flex items-center text-slate-500 hover:text-slate-800 mb-4">
                 <ArrowLeft className="w-4 h-4 mr-1" /> back
             </button>
 
-            {/* MAIN LAYOUT */}
+            {/* STAGE INDICATOR */}
+            <div className="flex gap-2 mb-4">
+                {stages.map((_, i) => (
+                    <div key={i} className="px-2 py-1 bg-green-200 text-green-800 rounded text-[10px] font-bold">Stage {i + 1}</div>
+                ))}
+                <div className="px-2 py-1 bg-blue-200 text-blue-800 rounded text-[10px] font-bold">Current: {street.toUpperCase()}</div>
+            </div>
+
             <div className="flex gap-8 mb-6">
-
-                {/* LEFT: HERO */}
                 <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                        <span className="text-slate-500">hero</span>
-                        <button onClick={handleRandomizeHero} className="text-blue-500">[rnd]</button>
-                    </div>
-
+                    <div className="flex items-center gap-2"><span className="text-slate-500">hero</span><button onClick={handleRandomizeHero} className="text-blue-500">[rnd]</button></div>
                     <div className="flex gap-2">
-                        {[0, 1].map((index) => (
-                            <button
-                                key={index}
-                                onClick={() => handleCardClick('hero', index)}
-                                className={cn(
-                                    "w-12 h-16 rounded border flex items-center justify-center bg-white",
-                                    heroCards[index] ? "border-slate-200" : "border-dashed border-slate-300"
-                                )}
-                            >
-                                {heroCards[index] ? (
-                                    <PlayingCard card={heroCards[index]} size="sm" />
-                                ) : (
-                                    <span className="text-slate-300">?</span>
-                                )}
+                        {[0, 1].map(i => (
+                            <button key={i} onClick={() => handleCardClick('hero', i)} className={cn("w-12 h-16 rounded border flex items-center justify-center bg-white", heroCards[i] ? "border-slate-200" : "border-dashed border-slate-300")}>
+                                {heroCards[i] ? <PlayingCard card={heroCards[i]} size="sm" /> : <span className="text-slate-300">?</span>}
                             </button>
                         ))}
                     </div>
-
                     <div className="flex items-center gap-2">
                         <span className="text-slate-500">pos</span>
-                        <select
-                            value={heroPos}
-                            onChange={e => setHeroPos(e.target.value)}
-                            className="bg-white border border-slate-200 rounded px-2 py-1 text-slate-700"
-                        >
-                            <option>SB</option>
-                            <option>BB</option>
-                            <option>UTG</option>
-                            <option>MP</option>
-                            <option>CO</option>
-                            <option>BTN</option>
+                        <select value={heroPos} onChange={e => setHeroPos(e.target.value)} className="bg-white border rounded px-2 py-1">
+                            {['SB', 'BB', 'UTG', 'MP', 'CO', 'BTN'].map(p => <option key={p}>{p}</option>)}
                         </select>
                     </div>
                 </div>
 
-                {/* CENTER: STREET & BOARD */}
                 <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                        <span className="text-slate-500">street</span>
-                        <select
-                            value={street}
-                            onChange={e => handleStreetChange(e.target.value as Street)}
-                            className="bg-white border border-slate-200 rounded px-2 py-1 text-slate-700"
-                        >
-                            <option value="preflop">Preflop</option>
-                            <option value="flop">Flop</option>
-                            <option value="turn">Turn</option>
-                            <option value="river">River</option>
+                    <div className="flex items-center gap-2"><span className="text-slate-500">street</span>
+                        <select value={street} onChange={e => handleStreetChange(e.target.value as Street)} className="bg-white border rounded px-2 py-1">
+                            {['preflop', 'flop', 'turn', 'river'].map(s => <option key={s}>{s}</option>)}
                         </select>
+                        <button onClick={handleRandomizeBoard} className="text-blue-500">[rnd]</button>
                     </div>
-
                     {street !== 'preflop' && (
-                        <>
-                            <div className="flex items-center gap-2">
-                                <span className="text-slate-500">board</span>
-                                <button onClick={handleRandomizeBoard} className="text-blue-500">[rnd]</button>
-                            </div>
-
-                            <div className="flex gap-1">
-                                {Array.from({ length: getBoardSlotCount() }).map((_, index) => (
-                                    <button
-                                        key={index}
-                                        onClick={() => handleCardClick('board', index)}
-                                        className={cn(
-                                            "w-10 h-14 rounded border flex items-center justify-center bg-white",
-                                            boardCards[index] ? "border-slate-200" : "border-dashed border-slate-300"
-                                        )}
-                                    >
-                                        {boardCards[index] ? (
-                                            <PlayingCard card={boardCards[index]} size="sm" className="scale-75" />
-                                        ) : (
-                                            <span className="text-slate-300 text-[10px]">?</span>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    )}
-                </div>
-
-                {/* RIGHT: VILLAINS */}
-                <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                        <span className="text-slate-500">villains</span>
-                        <button onClick={addVillain} className="text-blue-500"><Plus className="w-3 h-3" /></button>
-                    </div>
-
-                    {villains.map((v) => (
-                        <div key={v.id} className="flex items-center gap-1">
-                            <select
-                                value={v.position}
-                                onChange={e => updateVillainPos(v.id, e.target.value)}
-                                className="bg-white border border-slate-200 rounded px-2 py-1 text-slate-700"
-                            >
-                                <option>SB</option>
-                                <option>BB</option>
-                                <option>UTG</option>
-                                <option>MP</option>
-                                <option>CO</option>
-                                <option>BTN</option>
-                            </select>
-                            {villains.length > 1 && (
-                                <button onClick={() => removeVillain(v.id)} className="text-slate-400 hover:text-red-500">
-                                    <X className="w-3 h-3" />
+                        <div className="flex gap-1">
+                            {Array.from({ length: getBoardSlotCount() }).map((_, i) => (
+                                <button key={i} onClick={() => handleCardClick('board', i)} className={cn("w-10 h-14 rounded border flex items-center justify-center bg-white", boardCards[i] ? "border-slate-200" : "border-dashed border-slate-300")}>
+                                    {boardCards[i] ? <PlayingCard card={boardCards[i]} size="sm" className="scale-75" /> : <span className="text-slate-300">?</span>}
                                 </button>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* ACTION HISTORY */}
-            <div className="mb-4">
-                <span className="text-slate-500 block mb-2">action history</span>
-                <div className="bg-white border border-slate-200 rounded p-2 min-h-[60px] max-h-[120px] overflow-y-auto">
-                    {actionHistory.length === 0 ? (
-                        <span className="text-slate-300">no actions yet</span>
-                    ) : (
-                        <div className="space-y-1">
-                            {actionHistory.map((entry, i) => (
-                                <div key={i} className={cn(
-                                    "text-slate-600",
-                                    entry.isCorrect && "text-green-600 font-bold"
-                                )}>
-                                    {getActorLabel(entry.actor)} → {entry.action}
-                                    {entry.amount !== undefined && ` ${entry.amount}`}
-                                    {entry.isCorrect && " ✓"}
-                                </div>
                             ))}
                         </div>
                     )}
                 </div>
+
+                <div className="space-y-2">
+                    <div className="flex items-center gap-2"><span className="text-slate-500">villains</span><button onClick={addVillain} className="text-blue-500"><Plus className="w-3 h-3" /></button></div>
+                    {villains.map(v => (
+                        <div key={v.id} className="flex items-center gap-1">
+                            <select value={v.position} onChange={e => updateVillainPos(v.id, e.target.value)} className="bg-white border rounded px-2 py-1">
+                                {['SB', 'BB', 'UTG', 'MP', 'CO', 'BTN'].map(p => <option key={p}>{p}</option>)}
+                            </select>
+                            {villains.length > 1 && <button onClick={() => removeVillain(v.id)}><X className="w-3 h-3 text-slate-400" /></button>}
+                        </div>
+                    ))}
+                </div>
             </div>
 
-            {/* ADD ACTION ROW */}
-            <div className="flex items-center gap-2 mb-4">
-                {/* Actor */}
-                <select
-                    value={currentActor}
-                    onChange={e => setCurrentActor(e.target.value)}
-                    className={cn(
-                        "bg-white border rounded px-2 py-1",
-                        isHeroSelected ? "border-green-400 text-green-700" : "border-slate-200 text-slate-700"
-                    )}
-                >
-                    <option value="hero">Hero ({heroPos})</option>
-                    {villains.map(v => (
-                        <option key={v.id} value={v.id}>V: {v.position}</option>
+            <div className="mb-4">
+                <span className="text-slate-500 block mb-2">action history (current street)</span>
+                <div className="bg-white border border-slate-200 rounded p-2 min-h-[60px] max-h-[120px] overflow-y-auto space-y-1">
+                    {actionHistory.length === 0 && <span className="text-slate-300">no actions yet</span>}
+                    {actionHistory.map((entry, i) => (
+                        <div key={i} className={cn("text-slate-600", entry.isCorrect && "text-green-600 font-bold")}>
+                            {getActorLabel(entry.actor)} → {entry.action} {entry.amount && entry.amount} {entry.isCorrect && "✓"}
+                        </div>
                     ))}
+                </div>
+            </div>
+
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
+                <select value={currentActor} onChange={e => setCurrentActor(e.target.value)} className={cn("bg-white border rounded px-2 py-1", isHeroSelected ? "border-green-400" : "border-slate-200")}>
+                    <option value="hero">Hero ({heroPos})</option>
+                    {villains.map(v => <option key={v.id} value={v.id}>V: {v.position}</option>)}
                 </select>
 
-                {/* Action */}
-                <select
-                    value={currentAction}
-                    onChange={e => setCurrentAction(e.target.value)}
-                    className="bg-white border border-slate-200 rounded px-2 py-1 text-slate-700"
-                >
-                    <option>Fold</option>
-                    <option>Check</option>
-                    <option>Call</option>
-                    <option>Bet</option>
-                    <option>Raise</option>
-                    <option>All-in</option>
+                <select value={currentAction} onChange={e => setCurrentAction(e.target.value)} className="bg-white border rounded px-2 py-1">
+                    {['Fold', 'Check', 'Call', 'Bet', 'Raise', 'All-in'].map(a => <option key={a}>{a}</option>)}
                 </select>
-
-                {/* Amount (if needed) */}
-                {needsAmount && (
-                    <input
-                        type="number"
-                        value={currentAmount}
-                        onChange={e => setCurrentAmount(+e.target.value)}
-                        className="bg-white border border-slate-200 rounded px-2 py-1 text-slate-700 w-20"
-                        placeholder="amount"
-                    />
-                )}
-
-                {/* Save Button */}
-                <button
-                    onClick={addActionToHistory}
-                    className="bg-slate-700 text-white px-3 py-1 rounded hover:bg-slate-600"
-                >
-                    save
-                </button>
-
-                {/* Next Street Button */}
-                {canNextStreet && (
-                    <button
-                        onClick={handleNextStreet}
-                        className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-500 flex items-center gap-1"
-                    >
-                        next street <ArrowRight className="w-3 h-3" />
+                {needsAmount && <input type="number" value={currentAmount} onChange={e => setCurrentAmount(+e.target.value)} className="bg-white border w-20 px-2 py-1" placeholder="amt" />}
+                <button onClick={addActionToHistory} className="bg-slate-700 text-white px-3 py-1 rounded">save</button>
+                {street !== 'river' && (
+                    <button onClick={handleNextStreet} className="bg-blue-600 text-white px-3 py-1 rounded flex items-center gap-1 ml-auto">
+                        next street (capture) <ArrowRight className="w-3 h-3" />
                     </button>
                 )}
             </div>
 
-            {/* HERO EXPLANATIONS (only when Hero is selected) */}
+            {/* Explanations - show when Hero is selected */}
             {isHeroSelected && (
                 <div className="space-y-2 max-w-md">
-                    <div>
-                        <span className="text-green-600 block mb-1">why yes?</span>
-                        <textarea
-                            value={whyYes}
-                            onChange={e => setWhyYes(e.target.value)}
-                            className="w-full bg-white border border-green-200 rounded p-2 text-slate-700 h-16 resize-none"
-                            placeholder="почему это действие правильное..."
-                        />
-                    </div>
-                    <div>
-                        <span className="text-red-500 block mb-1">why not?</span>
-                        <textarea
-                            value={whyNot}
-                            onChange={e => setWhyNot(e.target.value)}
-                            className="w-full bg-white border border-red-200 rounded p-2 text-slate-700 h-16 resize-none"
-                            placeholder="пояснение если игрок выберет другое действие..."
-                        />
-                    </div>
+                    <textarea value={whyYes} onChange={e => setWhyYes(e.target.value)} className="w-full bg-white border border-green-200 rounded p-2 h-16" placeholder="Why Yes? (почему это правильное действие)" />
+                    <textarea value={whyNot} onChange={e => setWhyNot(e.target.value)} className="w-full bg-white border border-red-200 rounded p-2 h-16" placeholder="Why Not? (почему другое действие неправильно)" />
                 </div>
             )}
 
-            {/* SAVE HAND BUTTON */}
-            <div className="mt-8 pt-4 border-t border-slate-200">
-                <button
-                    onClick={handleSaveHand}
-                    className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-500 flex items-center gap-2"
-                >
-                    <Save className="w-4 h-4" /> Сохранить раздачу
+            <div className="mt-8 pt-4 border-t border-slate-200 flex gap-4 flex-wrap">
+                <button onClick={handleSaveHand} className="bg-green-600 text-white px-6 py-2 rounded flex items-center gap-2">
+                    <Save className="w-4 h-4" /> Save Seamless Hand ({stages.length + 1} stages)
                 </button>
-
-                {saveMessage && (
-                    <div className={cn(
-                        "mt-2 px-3 py-1 rounded inline-block",
-                        saveMessage.includes('✅') ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                    )}>
-                        {saveMessage}
-                    </div>
-                )}
+                <button
+                    onClick={() => {
+                        const data = {
+                            heroCards,
+                            heroPosition: heroPos,
+                            villains: villains.map(v => ({ position: v.position, id: v.id })),
+                            street,
+                            boardCards,
+                            potSize,
+                            actionHistory,
+                            stages: stages.map(s => ({
+                                street: s.street,
+                                heroChipsInFront: s.heroChipsInFront,
+                                villainChipsInFront: s.villainChipsInFront,
+                                villainAction: s.villainAction,
+                                correctAction: s.correctAction,
+                                amountToCall: s.amountToCall
+                            }))
+                        };
+                        navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+                        setSaveMessage('📋 Copied to clipboard!');
+                        setTimeout(() => setSaveMessage(''), 1500);
+                    }}
+                    className="bg-slate-600 text-white px-4 py-2 rounded flex items-center gap-2"
+                >
+                    <Copy className="w-4 h-4" /> Copy JSON
+                </button>
+                {saveMessage && <div className={cn("px-3 py-1 rounded inline-block", saveMessage.includes('✅') || saveMessage.includes('📋') ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")}>{saveMessage}</div>}
             </div>
 
-            {/* CARD MODAL */}
             {isCardModalOpen && (
                 <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
                     <div className="bg-white p-4 rounded-lg max-w-md w-full">
@@ -505,11 +515,7 @@ export function ScenarioBuilder({ onBack }: ScenarioBuilderProps) {
                             <span className="font-bold text-slate-600">Select Card</span>
                             <button onClick={() => setIsCardModalOpen(false)} className="text-slate-400">close</button>
                         </div>
-                        <CardMatrix
-                            selectedCards={[...heroCards, ...boardCards]}
-                            onSelectCard={handleCardSelect}
-                            maxSelection={52}
-                        />
+                        <CardMatrix selectedCards={[...heroCards, ...boardCards]} onSelectCard={handleCardSelect} maxSelection={52} />
                     </div>
                 </div>
             )}

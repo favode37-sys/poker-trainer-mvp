@@ -22,6 +22,19 @@ export interface Villain {
     cards: Card[]; // Array of 0 or 2 cards
 }
 
+// Decision point within a hand
+export interface Decision {
+    heroChipsInFront: number;
+    villainChipsInFront: number;
+    villainAction: string;
+    amountToCall: number;
+    correctAction: Action;
+    defaultRaiseAmount: number;
+    explanation_simple: string;
+    explanation_deep: string;
+    actionLabel: string; // e.g., "Hero Raise 3", "BB Raise 11"
+}
+
 export interface Scenario {
     id: string;
     title: string;
@@ -29,21 +42,24 @@ export interface Scenario {
     blinds: { sb: number; bb: number };
     heroPosition: string;
     heroStack?: number;
-    villainPosition?: string; // Deprecated, use villains array
+    villainPosition?: string;
     heroChipsInFront?: number;
-    villainChipsInFront?: number; // Deprecated
+    villainChipsInFront?: number;
     villains?: Villain[];
     heroCards: [Card, Card];
     communityCards: Card[];
     potSize: number;
     actionHistory: string[];
-    villainAction?: string; // Deprecated
+    villainAction?: string;
     amountToCall: number;
     defaultRaiseAmount: number;
     correctAction: Action;
     explanation_simple: string;
     explanation_deep: string;
     nextStageId?: string;
-    isFollowUp?: boolean; // Marks scenarios that are part of a chain (not root)
+    isFollowUp?: boolean;
     street?: 'preflop' | 'flop' | 'turn' | 'river';
+
+    // NEW: Multi-decision support
+    decisions?: Decision[];  // Array of sequential decision points
 }

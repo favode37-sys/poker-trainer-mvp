@@ -129,8 +129,8 @@ export function GameTable({ levelId, levelTitle, scenarioIds, xpReward, onLevelC
                 <SmartTable
                     currentScenario={currentScenario}
                     boss={boss}
-                    onActionComplete={(action) => {
-                        analytics.scenarioResult(currentScenario.id, action === currentScenario.correctAction, action);
+                    onActionComplete={(action, isCorrect) => {
+                        analytics.scenarioResult(currentScenario.id, isCorrect, action);
                         handleAction(action);
                     }}
                     renderControls={({ handleAction: onAction, isReady, amountToCall, raiseAmount }: SmartTableControlsProps) => {
